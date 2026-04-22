@@ -5,8 +5,12 @@
  *   import { withSparkCSS } from "spark-css/nextjs";
  *   export default withSparkCSS(nextConfig);
  *
- * That's it — no manual imports, no CLI commands needed.
- * spark-css handles everything automatically.
+ * Automatically:
+ * 1. Extracts styles before each build
+ * 2. Transforms sc.create() → plain objects at compile time
+ * 3. Injects __SPARK_CSS_META__ into bundle (enables sc.merge() conflict resolution)
+ * 4. Emits spark-css.css
+ * 5. Configures Turbopack resolveAlias
  */
 
 import path from "path";
@@ -16,12 +20,15 @@ import { SparkCSSWebpackPlugin, sparkCSSLoader } from "./plugins/webpack";
 
 export { SparkCSSWebpackPlugin };
 
-export function withSparkCSS(nextConfig: NextConfig = {}): NextConfig {
+export function withSparkCSS(
+  nextConfig: NextConfig = {},
+  options: { srcDir?: string } = {}
+): NextConfig {
   const ROOT    = process.cwd();
   const cssFile = path.join(ROOT, "public", "spark-css.css");
   const metaDir = path.join(ROOT, ".spark-css");
 
-  /* Ensure CSS file exists before Next.js starts */
+  /* Ensure output files exist before Next.js starts */
   fs.mkdirSync(path.dirname(cssFile), { recursive: true });
   fs.mkdirSync(metaDir, { recursive: true });
   if (!fs.existsSync(cssFile)) {
@@ -31,33 +38,37 @@ export function withSparkCSS(nextConfig: NextConfig = {}): NextConfig {
   return {
     ...nextConfig,
 
-    /* Turbopack — resolve spark-css to the dist runtime */
+    /* ── Turbopack resolveAlias (forward slashes required on Windows) ── */
     turbopack: {
       ...(nextConfig as any).turbopack,
       resolveAlias: {
         ...((nextConfig as any).turbopack?.resolveAlias ?? {}),
-        "spark-css": path.join(__dirname, "runtime", "index.js").replace(/\\/g, "/"),
+        "spark-css": path
+          .join(__dirname, "runtime", "index.js")
+          .replace(/\\/g, "/"),
       },
     },
 
-    /* Webpack — transform sc.create() + emit CSS */
+    /* ── Webpack ── */
     webpack(config, ctx) {
 
-      /* 1. Transform sc.create() calls at build time */
+      /* 1. Transform sc.create() at compile time */
       config.module.rules.unshift({
         test:    /\.(ts|tsx|js|jsx)$/,
         exclude: [/node_modules/, /\.spark-css/],
         use:     [{ loader: require.resolve("./plugins/webpack") }],
       });
 
-      /* 2. Collect rules and emit spark-css.css */
+      /* 2. SparkCSSWebpackPlugin:
+         - Runs extraction before compile
+         - Injects __SPARK_CSS_META__ via DefinePlugin
+         - Emits spark-css.css after emit */
       config.plugins = [
         ...(config.plugins ?? []),
         new SparkCSSWebpackPlugin(),
       ];
 
-      /* 3. Auto-inject spark-css.css into the client app
-         by prepending an import to the _app entry */
+      /* 3. Auto-inject spark-css.css into app (client only) */
       if (!ctx.isServer) {
         const origEntry = config.entry;
         config.entry = async () => {
@@ -67,21 +78,18 @@ export function withSparkCSS(nextConfig: NextConfig = {}): NextConfig {
               : Promise.resolve(origEntry)
           );
 
-          /* Find the main app entry and prepend our CSS shim */
-          const shimPath = path.join(__dirname, "css-shim.js");
+          /* Write a small shim that imports the CSS */
+          const shimPath = path
+            .join(__dirname, "css-shim.js")
+            .replace(/\\/g, "/");
 
-          /* Write the shim dynamically pointing to the actual CSS file */
           fs.writeFileSync(
             shimPath,
-            `require(${JSON.stringify(cssFile)});\n`
+            `require(${JSON.stringify(cssFile.replace(/\\/g, "/"))});\n`
           );
 
           for (const key of Object.keys(entries)) {
-            if (
-              typeof entries[key] === "object" &&
-              Array.isArray(entries[key]) &&
-              !entries[key].includes(shimPath)
-            ) {
+            if (Array.isArray(entries[key]) && !entries[key].includes(shimPath)) {
               entries[key].unshift(shimPath);
             }
           }
