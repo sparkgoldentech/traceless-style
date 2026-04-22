@@ -32,17 +32,20 @@
     ".": {
       "types": "./dist/runtime/index.d.ts",
       "import": "./dist/runtime/index.mjs",
-      "require": "./dist/runtime/index.js"
+      "require": "./dist/runtime/index.js",
+      "default": "./dist/runtime/index.js"
     },
     "./nextjs": {
       "types": "./dist/nextjs.d.ts",
       "import": "./dist/nextjs.mjs",
-      "require": "./dist/nextjs.js"
+      "require": "./dist/nextjs.js",
+      "default": "./dist/nextjs.js"
     },
     "./webpack": {
       "types": "./dist/plugins/webpack.d.ts",
       "import": "./dist/plugins/webpack.mjs",
-      "require": "./dist/plugins/webpack.js"
+      "require": "./dist/plugins/webpack.js",
+      "default": "./dist/plugins/webpack.js"
     }
   },
   "files": [
