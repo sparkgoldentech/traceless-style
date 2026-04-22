@@ -20,9 +20,27 @@ import { SparkCSSWebpackPlugin, sparkCSSLoader } from "./plugins/webpack";
 
 export { SparkCSSWebpackPlugin };
 
+export interface SparkCSSNextOptions {
+  /** Source directory to scan. Default: src/ or app/ */
+  srcDir?: string;
+  /**
+   * Custom variants passed to sc.extend().
+   * Must match what you pass to sc.extend() in your code.
+   *
+   * Example:
+   *   withSparkCSS(nextConfig, {
+   *     variants: {
+   *       _tablet: "@media (min-width: 900px)",
+   *       _brand:  ".my-brand &",
+   *     }
+   *   })
+   */
+  variants?: Record<string, string>;
+}
+
 export function withSparkCSS(
   nextConfig: NextConfig = {},
-  options: { srcDir?: string } = {}
+  options: SparkCSSNextOptions = {}
 ): NextConfig {
   const ROOT    = process.cwd();
   const cssFile = path.join(ROOT, "public", "spark-css.css");

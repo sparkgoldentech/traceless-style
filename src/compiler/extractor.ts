@@ -1,5 +1,17 @@
+/**
+ * spark-css — compiler/extractor.ts
+ *
+ * Transforms sc.create() calls at build time.
+ * Uses the variant registry so custom variants from sc.extend() work.
+ */
+
 import { parseStyleObject, StyleObject, ParseError } from "./ast-parser";
 import { classFor, toKebab }                          from "./hash";
+import {
+  DEFAULT_VARIANTS,
+  mergeVariants,
+  type FlatVariants,
+} from "./variants";
 import type { AtomicRule }                            from "./css-gen";
 
 export interface TransformResult {
@@ -10,98 +22,140 @@ export interface TransformResult {
   warnings: string[];
 }
 
+/* ═══════════════════════════════
+   Rule Registry
+═══════════════════════════════ */
 class RuleRegistry {
   private rules = new Map<string, AtomicRule>();
   private order = 0;
+
   add(r: Omit<AtomicRule, "order">): AtomicRule {
     if (this.rules.has(r.cls)) return this.rules.get(r.cls)!;
     const full = { ...r, order: this.order++ };
     this.rules.set(r.cls, full);
     return full;
   }
-  getAll(): AtomicRule[] { return [...this.rules.values()].sort((a, b) => a.order - b.order); }
-  clear(): void { this.rules.clear(); this.order = 0; }
+
+  getAll(): AtomicRule[] {
+    return [...this.rules.values()].sort((a, b) => a.order - b.order);
+  }
+
+  clear(): void {
+    this.rules.clear();
+    this.order = 0;
+  }
 }
 
 export const globalRegistry = new RuleRegistry();
 
-export const VARIANTS: Record<string, string> = {
-  _hover:        ":hover",
-  _focus:        ":focus",
-  _focusWithin:  ":focus-within",
-  _focusVisible: ":focus-visible",
-  _active:       ":active",
-  _visited:      ":visited",
-  _disabled:     ":disabled",
-  _checked:      ":checked",
-  _placeholder:  "::placeholder",
-  _before:       "::before",
-  _after:        "::after",
-  _selection:    "::selection",
-  _dark:         ":is(.dark *)",
-  _light:        ":not(.dark) &",
-  _rtl:          '[dir="rtl"] &',
-  _ltr:          '[dir="ltr"] &',
-  _first:        ":first-child",
-  _last:         ":last-child",
-  _odd:          ":nth-child(odd)",
-  _even:         ":nth-child(even)",
-  _empty:        ":empty",
-  _groupHover:   ".group:hover &",
-  _groupFocus:   ".group:focus &",
-  _peerFocus:    ".peer:focus ~ &",
-  _peerChecked:  ".peer:checked ~ &",
-  sm:            "@media (min-width:640px)",
-  md:            "@media (min-width:768px)",
-  lg:            "@media (min-width:1024px)",
-  xl:            "@media (min-width:1280px)",
-  "2xl":         "@media (min-width:1536px)",
-  print:         "@media print",
-  motionSafe:    "@media (prefers-reduced-motion:no-preference)",
-  motionReduce:  "@media (prefers-reduced-motion:reduce)",
-  darkOS:        "@media (prefers-color-scheme:dark)",
-  portrait:      "@media (orientation:portrait)",
-  landscape:     "@media (orientation:landscape)",
-};
+/* Re-export VARIANTS for backward compat */
+export const VARIANTS: FlatVariants = DEFAULT_VARIANTS;
 
+/* ═══════════════════════════════
+   Style processing
+═══════════════════════════════ */
 function processStyles(
-  obj: StyleObject,
+  obj:       StyleObject,
+  variants:  FlatVariants,
   selector?: string,
   file = "<unknown>",
   errors: ParseError[] = []
 ): string[] {
   const classes: string[] = [];
+
   for (const [key, value] of Object.entries(obj)) {
     if (value === undefined || value === null) continue;
-    if (key in VARIANTS) {
+
+    /* Variant key */
+    if (key in variants) {
       if (typeof value !== "object") {
-        errors.push({ message: `Variant '${key}' must be an object`, line: 0, col: 0, file });
+        errors.push({
+          message: `Variant '${key}' must be an object, got ${typeof value}`,
+          line: 0, col: 0, file,
+        });
         continue;
       }
-      classes.push(...processStyles(value as StyleObject, VARIANTS[key], file, errors));
+      classes.push(
+        ...processStyles(
+          value as StyleObject,
+          variants,
+          variants[key],
+          file,
+          errors
+        )
+      );
       continue;
     }
+
+    /* At-rule inside sc.create() — not supported */
     if (key.startsWith("@")) {
-      errors.push({ message: `At-rules not allowed inside sc.create()`, line: 0, col: 0, file });
+      errors.push({
+        message: `At-rules inside sc.create() are not supported. Use globalStyles() for @keyframes.`,
+        line: 0, col: 0, file,
+      });
       continue;
     }
+
+    /* Unknown nested object — likely a typo in variant name */
     if (typeof value === "object") {
-      errors.push({ message: `Unknown variant '${key}'. Add via sc.extend().`, line: 0, col: 0, file });
+      /* Give a helpful error with suggestions */
+      const suggestion = findClosestVariant(key, variants);
+      errors.push({
+        message:
+          `Unknown variant '${key}'` +
+          (suggestion ? ` — did you mean '${suggestion}'?` : "") +
+          ` Add custom variants via sc.extend({ variants: { ${key}: "..." } }).`,
+        line: 0, col: 0, file,
+      });
       continue;
     }
-    const sv = String(value);
-    const cls = classFor(key, sv, selector);
-    globalRegistry.add({ cls, prop: toKebab(key), value: sv, selector });
+
+    /* CSS property */
+    const strVal = String(value);
+    const cls    = classFor(key, strVal, selector);
+    globalRegistry.add({ cls, prop: toKebab(key), value: strVal, selector });
     classes.push(cls);
   }
+
   return classes;
 }
 
-/**
- * Robust sc.create() finder.
- * Skips string literals, template literals, and comments entirely.
- * Only finds ACTUAL sc.create() calls in executable code.
- */
+/** Find closest variant key (Levenshtein distance ≤ 2) */
+function findClosestVariant(
+  key:      string,
+  variants: FlatVariants
+): string | null {
+  let best: string | null = null;
+  let bestDist = Infinity;
+
+  for (const variant of Object.keys(variants)) {
+    const dist = levenshtein(key, variant);
+    if (dist < bestDist && dist <= 2) {
+      bestDist = dist;
+      best     = variant;
+    }
+  }
+
+  return best;
+}
+
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
+  );
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1]
+        ? dp[i-1][j-1]
+        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+/* ═══════════════════════════════
+   sc.create() call finder
+   Robust — skips strings, comments, template literals
+═══════════════════════════════ */
 function findCalls(src: string): Array<{
   fullStart: number;
   fullEnd:   number;
@@ -113,13 +167,13 @@ function findCalls(src: string): Array<{
   while (i < src.length) {
     const ch = src[i];
 
-    // Skip line comments
+    /* Skip line comments */
     if (ch === "/" && src[i + 1] === "/") {
       while (i < src.length && src[i] !== "\n") i++;
       continue;
     }
 
-    // Skip block comments
+    /* Skip block comments */
     if (ch === "/" && src[i + 1] === "*") {
       i += 2;
       while (i < src.length && !(src[i] === "*" && src[i + 1] === "/")) i++;
@@ -127,34 +181,26 @@ function findCalls(src: string): Array<{
       continue;
     }
 
-    // Skip string literals — sc.create inside strings is NOT a real call
+    /* Skip string literals — sc.create inside strings is NOT a call */
     if (ch === '"' || ch === "'") {
-      const q = ch;
-      i++;
+      const q = ch; i++;
       while (i < src.length) {
         if (src[i] === "\\" ) { i += 2; continue; }
-        if (src[i] === q)    { i++; break; }
+        if (src[i] === q)    { i++;     break;    }
         i++;
       }
       continue;
     }
 
-    // Skip JSX attribute strings with curly braces like {"sc.create"}
-    if (ch === "{" && src[i + 1] === '"') {
-      i++;
-      continue;
-    }
-
-    // Skip template literals entirely
+    /* Skip template literals entirely */
     if (ch === "`") {
       i++;
       while (i < src.length && src[i] !== "`") {
         if (src[i] === "\\" ) { i += 2; continue; }
         if (src[i] === "$" && src[i + 1] === "{") {
-          i += 2;
-          let depth = 1;
+          i += 2; let depth = 1;
           while (i < src.length && depth > 0) {
-            if (src[i] === "{") depth++;
+            if      (src[i] === "{") depth++;
             else if (src[i] === "}") depth--;
             i++;
           }
@@ -166,33 +212,35 @@ function findCalls(src: string): Array<{
       continue;
     }
 
-    // Look for sc.create(
+    /* Look for sc.create( or mysc.create( */
     if (
-      ch === "s" &&
-      src[i + 1] === "c" &&
-      src[i + 2] === "." &&
-      src[i + 3] === "c" &&
-      src[i + 4] === "r" &&
+      src[i + 0] === "c" &&
+      src[i + 1] === "r" &&
+      src[i + 2] === "e" &&
+      src[i + 3] === "a" &&
+      src[i + 4] === "t" &&
       src[i + 5] === "e" &&
-      src[i + 6] === "a" &&
-      src[i + 7] === "t" &&
-      src[i + 8] === "e" &&
-      src[i + 9] === "("
+      src[i + 6] === "("
     ) {
-      const callStart = i;
-      i += 10;
+      /* Find the preceding dot + identifier (e.g. sc. or mysc.) */
+      let dotPos = i - 1;
+      if (dotPos < 0 || src[dotPos] !== ".") { i++; continue; }
 
-      // Skip whitespace
+      let idEnd   = dotPos;
+      let idStart = idEnd - 1;
+      while (idStart > 0 && /[a-zA-Z0-9_$]/.test(src[idStart - 1])) idStart--;
+
+      const callStart = idStart;
+      i = i + 7; // skip "create("
+
+      /* Skip whitespace */
       while (i < src.length && /\s/.test(src[i])) i++;
 
-      // Must be followed by { to be a valid sc.create call
+      /* Must be followed by { */
       if (src[i] !== "{") continue;
 
       const openPos = i;
-      let depth = 0;
-      let inStr  = false;
-      let strCh  = "";
-      let end    = openPos;
+      let depth = 0, inStr = false, strCh = "", end = openPos;
 
       for (let j = openPos; j < src.length; j++) {
         const c = src[j];
@@ -209,7 +257,11 @@ function findCalls(src: string): Array<{
             let pe = end;
             while (pe < src.length && /\s/.test(src[pe])) pe++;
             if (src[pe] === ")") pe++;
-            calls.push({ fullStart: callStart, fullEnd: pe, argSrc: src.slice(openPos, end) });
+            calls.push({
+              fullStart: callStart,
+              fullEnd:   pe,
+              argSrc:    src.slice(openPos, end),
+            });
             i = pe;
             break;
           }
@@ -224,13 +276,30 @@ function findCalls(src: string): Array<{
   return calls;
 }
 
-export function transform(src: string, file: string): TransformResult {
-  const errors: ParseError[] = [];
-  const warnings: string[]   = [];
-  const rules: AtomicRule[]  = [];
+/* ═══════════════════════════════
+   Main transform function
+═══════════════════════════════ */
+export function transform(
+  src:            string,
+  file:           string,
+  customVariants: Record<string, string> = {}
+): TransformResult {
+  const errors:   ParseError[] = [];
+  const warnings: string[]     = [];
+  const rules:    AtomicRule[] = [];
 
-  if (!src.includes("sc.create")) {
+  if (!src.includes("create")) {
     return { code: src, rules: [], changed: false, errors: [], warnings: [] };
+  }
+
+  /* Merge built-ins with any custom variants passed by the plugin */
+  const { flat: variants, errors: varErrors } = customVariants && Object.keys(customVariants).length > 0
+    ? mergeVariants(customVariants)
+    : { flat: DEFAULT_VARIANTS, errors: [] };
+
+  /* Log variant errors as warnings */
+  for (const ve of varErrors) {
+    warnings.push(`[spark-css] ${ve.message}`);
   }
 
   const calls = findCalls(src);
@@ -252,19 +321,31 @@ export function transform(src: string, file: string): TransformResult {
     }
 
     const resolved: Record<string, string> = {};
+
     for (const [key, styles] of Object.entries(outerObj)) {
       if (typeof styles !== "object") {
-        errors.push({ message: `Key '${key}' must be an object`, line: 0, col: 0, file });
+        errors.push({
+          message: `sc.create() key '${key}' must be an object`,
+          line: 0, col: 0, file,
+        });
         continue;
       }
-      resolved[key] = [
-        ...new Set(processStyles(styles as StyleObject, undefined, file, errors))
-      ].join(" ");
+
+      const classes = processStyles(
+        styles as StyleObject,
+        variants,
+        undefined,
+        file,
+        errors
+      );
+      resolved[key] = [...new Set(classes)].join(" ");
     }
 
-    rules.push(...globalRegistry.getAll().filter(r =>
-      Object.values(resolved).some(v => v.includes(r.cls))
-    ));
+    rules.push(
+      ...globalRegistry
+        .getAll()
+        .filter(r => Object.values(resolved).some(v => v.includes(r.cls)))
+    );
 
     const replacement = JSON.stringify(resolved);
     const start = call.fullStart + offset;
@@ -274,11 +355,18 @@ export function transform(src: string, file: string): TransformResult {
     changed = true;
   }
 
-  if (changed && !result.includes("sc.")) {
+  /* Remove spark-css imports if no more references remain */
+  if (changed && !result.includes(".create") && !result.includes(".merge") && !result.includes(".cx")) {
     result = result
-      .replace(/import\s+\{[^}]*\bsc\b[^}]*\}\s+from\s+["']spark-css[^"']*["'];?\n?/g, "")
-      .replace(/import\s+sc\s+from\s+["']spark-css[^"']*["'];?\n?/g, "");
+      .replace(/import\s+\{[^}]*\b(sc|merge|cx|extend)\b[^}]*\}\s+from\s+["']spark-css[^"']*["'];?\n?/g, "")
+      .replace(/import\s+\*\s+as\s+\w+\s+from\s+["']spark-css[^"']*["'];?\n?/g, "");
   }
 
-  return { code: result, rules: globalRegistry.getAll(), changed, errors, warnings };
+  return {
+    code: result,
+    rules: globalRegistry.getAll(),
+    changed,
+    errors,
+    warnings,
+  };
 }

@@ -1,132 +1,96 @@
 /**
  * spark-css — runtime/index.ts
  *
- * The ONLY code that runs in the browser.
- * All sc.create() calls are replaced at build time — this file
- * only provides merge(), cx(), and the class meta lookup.
- *
- * sc.merge() — StyleX-equivalent conflict resolution:
- *   - Last definition of a CSS property WINS
- *   - Earlier conflicting classes are REMOVED from the output
- *   - Variant-specific conflicts (e.g. _dark:color) resolved separately
- *
- * Example:
- *   const a = sc.create({ box: { color: "red",  display: "flex" } });
- *   const b = sc.create({ box: { color: "blue", padding: "1rem" } });
- *
- *   sc.merge(a.box, b.box)
- *   // a.box = "scRED sc111"   (color:red, display:flex)
- *   // b.box = "scBLUE sc222"  (color:blue, padding:1rem)
- *
- *   Without conflict resolution: "scRED sc111 scBLUE sc222"
- *   → both color:red AND color:blue in HTML, CSS order decides
- *
- *   With conflict resolution:    "sc111 scBLUE sc222"
- *   → scRED removed because scBLUE (color:blue) comes later
- *   → display:flex and padding:1rem kept (no conflict)
+ * Public API:
+ *   sc.create()  — define styles (replaced at build time)
+ *   sc.merge()   — conflict-aware class merging (last wins)
+ *   sc.cx()      — simple conditional class joining
+ *   sc.extend()  — create a new instance with custom variants
  */
 
-import type { CSSProperties }  from "../types/css";
-import type { VariantKey }     from "../types/variants";
+import type { CSSProperties } from "../types/css";
+import {
+  mergeVariants,
+  DEFAULT_VARIANTS,
+  type FlatVariants,
+  type VariantValidationError,
+} from "../compiler/variants";
 
-/* ── Class metadata — injected at build time by webpack DefinePlugin ── */
+/* ── Compile-time meta injected by webpack DefinePlugin ── */
 declare const __SPARK_CSS_META__: Record<string, string> | undefined;
 
-/**
- * Runtime meta store.
- * Populated from __SPARK_CSS_META__ (compile-time constant)
- * or via __setMeta() for SSR/test environments.
- */
 let __meta: Record<string, string> = {};
 
-/* Load compile-time meta if available */
 try {
   if (typeof __SPARK_CSS_META__ !== "undefined" && __SPARK_CSS_META__) {
     __meta = __SPARK_CSS_META__;
   }
-} catch {
-  // __SPARK_CSS_META__ not defined — will be set via __setMeta()
-}
+} catch { /* not available — set via __setMeta */ }
 
-/** Set meta at runtime (used by SSR, tests, or when DefinePlugin not used) */
 export function __setMeta(meta: Record<string, string>): void {
   __meta = { ...__meta, ...meta };
 }
 
-/**
- * Conflict-aware style merge — the core innovation.
- *
- * Algorithm:
- * 1. Walk each class string left to right (earlier → later)
- * 2. For each class, look up its "prop:selector" key in meta
- * 3. Map: propKey → latestClass (later always overwrites earlier)
- * 4. Output: deduplicated values (last wins per prop:selector)
- *
- * This is O(n) where n = total number of classes across all inputs.
- */
+/* ── Style types ── */
+export type VariantKey = string;
+
+export type StyleDef = CSSProperties & {
+  [key: string]: unknown;
+};
+
+type StyleMap       = Record<string, StyleDef>;
+type ResolvedMap<T> = { [K in keyof T]: string };
+
+/* ══════════════════════════════════════════
+   sc.merge() — conflict-aware merge
+   Identical behavior to StyleX props()
+══════════════════════════════════════════ */
 export function merge(
   ...inputs: (string | undefined | null | false | 0)[]
 ): string {
-  // Fast path — nothing to merge
-  const valid = inputs.filter((x): x is string => typeof x === "string" && x.length > 0);
+  const valid = inputs.filter(
+    (x): x is string => typeof x === "string" && x.length > 0
+  );
+
   if (valid.length === 0) return "";
   if (valid.length === 1) return valid[0];
 
-  // No meta loaded — fall back to simple concatenation
+  /* No meta — fall back to deduped concatenation */
   if (Object.keys(__meta).length === 0) {
     return [...new Set(valid.join(" ").split(/\s+/).filter(Boolean))].join(" ");
   }
 
-  /**
-   * propKey → winning class
-   * propKey format: "display" | "color::hover" | "background-color::is(.dark *)"
-   *
-   * Why separate base and variant?
-   * color:red (base) and color:blue:hover are NOT conflicts —
-   * they apply in different conditions.
-   */
   const propKeyToClass = new Map<string, string>();
-
-  /* Classes without meta (unknown/external) — always kept */
   const unknownClasses = new Set<string>();
 
   for (const input of valid) {
-    const classes = input.split(/\s+/);
-    for (const cls of classes) {
+    for (const cls of input.split(/\s+/)) {
       if (!cls) continue;
       const key = __meta[cls];
       if (key !== undefined) {
-        // Known class — last one wins per key
-        propKeyToClass.set(key, cls);
+        propKeyToClass.set(key, cls); // last wins per prop:selector
       } else {
-        // Unknown class (external, e.g. from globals.css) — always keep
-        unknownClasses.add(cls);
+        unknownClasses.add(cls); // external classes always kept
       }
     }
   }
 
-  const result = [
-    ...[...propKeyToClass.values()],
-    ...[...unknownClasses],
-  ];
-
-  return result.join(" ");
+  return [...propKeyToClass.values(), ...unknownClasses].join(" ");
 }
 
-/**
- * Conditional class joining — no conflict resolution.
- * Equivalent to clsx, zero dependencies.
- *
- * Accepts:
- *   - strings: "scm92pvu sc883bzd"
- *   - false/null/undefined: skipped
- *   - objects: { [cls]: boolean }
- *
- * Usage:
- *   cx($.base, isActive && $.active, { [$.highlight]: hasError })
- */
+/* ══════════════════════════════════════════
+   sc.cx() — simple conditional joining
+   Like clsx, zero dependencies
+══════════════════════════════════════════ */
 export function cx(
-  ...inputs: (string | undefined | null | false | 0 | Record<string, boolean>)[]
+  ...inputs: (
+    | string
+    | undefined
+    | null
+    | false
+    | 0
+    | Record<string, boolean>
+  )[]
 ): string {
   const classes: string[] = [];
   for (const input of inputs) {
@@ -142,28 +106,10 @@ export function cx(
   return classes.join(" ");
 }
 
-/* ── StyleDef type ── */
-export type StyleDef = CSSProperties & {
-  [K in VariantKey]?: CSSProperties;
-} & {
-  [key: string]: unknown;
-};
-
-type StyleMap       = Record<string, StyleDef>;
-type ResolvedMap<T> = { [K in keyof T]: string };
-
-/**
- * sc.create() — REPLACED at build time by plain object.
- *
- * This function only runs in:
- * 1. Development without the webpack transform
- * 2. Tests
- * 3. Non-Next.js environments
- *
- * In production after build: sc.create({ card: { display: "flex" } })
- * becomes:                   { card: "scm92pvu" }
- * and this function is never called.
- */
+/* ══════════════════════════════════════════
+   sc.create() — replaced at build time
+   Dev fallback only
+══════════════════════════════════════════ */
 export function create<T extends StyleMap>(map: T): ResolvedMap<T> {
   if (
     typeof process !== "undefined" &&
@@ -171,13 +117,10 @@ export function create<T extends StyleMap>(map: T): ResolvedMap<T> {
   ) {
     console.error(
       "[spark-css] sc.create() called at runtime in production!\n" +
-      "This means the build-time transform did not run.\n" +
-      "Add to next.config.ts: import { withSparkCSS } from 'spark-css/nextjs'\n" +
-      "Or run: npx spark-css extract before building."
+      "Add withSparkCSS() to next.config.ts or run: npx spark-css extract"
     );
   }
 
-  // Dev fallback — runtime extraction
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { transform, globalRegistry } = require("../compiler/extractor");
@@ -185,19 +128,15 @@ export function create<T extends StyleMap>(map: T): ResolvedMap<T> {
     const { generateCSS }               = require("../compiler/css-gen");
 
     const result: Record<string, string> = {};
-
     for (const [key, styles] of Object.entries(map)) {
       const fakeSrc = `sc.create(${JSON.stringify({ [key]: styles })})`;
       const { code } = transform(fakeSrc, "runtime");
       try {
         const parsed = JSON.parse(code) as Record<string, string>;
         result[key]  = parsed[key] ?? "";
-      } catch {
-        result[key] = "";
-      }
+      } catch { result[key] = ""; }
     }
 
-    /* Inject CSS into DOM in dev mode */
     if (typeof document !== "undefined") {
       const css = generateCSS(globalRegistry.getAll());
       let tag   = document.querySelector<HTMLStyleElement>("style[data-sc]");
@@ -217,5 +156,113 @@ export function create<T extends StyleMap>(map: T): ResolvedMap<T> {
   }
 }
 
-/** Main sc object */
-export const sc = { create, merge, cx };
+/* ══════════════════════════════════════════
+   sc.extend() — create instance with custom variants
+══════════════════════════════════════════ */
+
+export interface ExtendOptions {
+  /**
+   * Custom variant definitions.
+   *
+   * Key:   variant name used in sc.create()
+   * Value: CSS selector or at-rule
+   *
+   * Examples:
+   *   _tablet: "@media (min-width: 900px)"
+   *   _brand:  ".my-brand &"
+   *   _print:  "@media print"
+   *   _hover2: ":hover:not(:disabled)"
+   */
+  variants: Record<string, string>;
+
+  /**
+   * Optional: override the class name prefix.
+   * Default: "sc"
+   * Use this to differentiate multiple sc instances.
+   */
+  prefix?: string;
+}
+
+export interface SparkCSSInstance {
+  create: typeof create;
+  merge:  typeof merge;
+  cx:     typeof cx;
+  /** The flat variant map for this instance */
+  variants: FlatVariants;
+  /** Any validation errors from the extend() call */
+  errors: VariantValidationError[];
+}
+
+/**
+ * sc.extend() — Create a new spark-css instance with additional variants.
+ *
+ * Usage:
+ *   // In your spark-css config file (e.g. src/sc.ts)
+ *   import { sc } from "spark-css";
+ *
+ *   export const mysc = sc.extend({
+ *     variants: {
+ *       _tablet:     "@media (min-width: 900px)",
+ *       _widescreen: "@media (min-width: 1800px)",
+ *       _brand:      ".my-brand &",
+ *       _hoverFocus: ":hover, :focus",
+ *     },
+ *   });
+ *
+ *   // In any component:
+ *   import { mysc } from "@/sc";
+ *
+ *   const $ = mysc.create({
+ *     card: {
+ *       padding:  "1rem",
+ *       _tablet:  { padding: "2rem" },   // ✅ custom variant
+ *       _brand:   { color: "#f97316" },  // ✅ custom variant
+ *     },
+ *   });
+ *
+ * Validation:
+ *   Invalid variants are skipped and logged to instance.errors.
+ *   Built-in variants can be overridden.
+ *   The instance behaves exactly like the default sc object.
+ */
+export function extend(options: ExtendOptions): SparkCSSInstance {
+  const { registry, flat, errors } = mergeVariants(options.variants);
+
+  /* Log errors in development */
+  if (errors.length > 0 && typeof process !== "undefined") {
+    for (const err of errors) {
+      console.warn(`[spark-css] sc.extend() — ${err.message}`);
+    }
+  }
+
+  /*
+   * At build time, the webpack loader reads the VARIANTS from the
+   * extractor module. For extend() to work at build time, the user
+   * must also pass their custom variants to the Next.js plugin:
+   *
+   *   withSparkCSS(nextConfig, {
+   *     variants: {
+   *       _tablet: "@media (min-width: 900px)",
+   *     },
+   *   });
+   *
+   * This ensures the extractor knows about custom variants during compilation.
+   */
+
+  return {
+    create,  // same create — build transform handles the variants
+    merge,
+    cx,
+    variants: flat,
+    errors,
+  };
+}
+
+/* ── Default sc instance ── */
+export const sc = {
+  create,
+  merge,
+  cx,
+  extend,
+  variants: DEFAULT_VARIANTS,
+};
