@@ -19,7 +19,6 @@ export default defineConfig([
     dts:       true,
     clean:     false,
     minify:    true,
-    // ✅ mark webpack plugin as external — fixes require.resolve warning
     external:  ["react", "next", "webpack", "path", "fs", "./plugins/webpack", "../plugins/webpack"],
     outDir:    "dist",
   },
@@ -33,15 +32,19 @@ export default defineConfig([
     external:  ["webpack", "path", "fs"],
     outDir:    "dist",
   },
-  // CLI — executable
+  // CLI — use ESM format so shebang works on line 1
   {
     entry:     { "cli/extract": "src/cli/extract.ts" },
-    format:    ["cjs"],
+    format:    ["esm"],
     dts:       false,
     clean:     false,
     minify:    false,
     external:  ["path", "fs"],
     outDir:    "dist",
-    banner:    { js: "#!/usr/bin/env node" },
+    // shebang must be the very first line — footer trick doesn't work
+    // Instead we patch after build via onSuccess
+    esbuildOptions(options) {
+      options.banner = { js: "#!/usr/bin/env node" };
+    },
   },
 ]);
