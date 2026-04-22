@@ -36,7 +36,7 @@ export function withSparkCSS(nextConfig: NextConfig = {}): NextConfig {
       ...(nextConfig as any).turbopack,
       resolveAlias: {
         ...((nextConfig as any).turbopack?.resolveAlias ?? {}),
-        "spark-css": path.join(__dirname, "runtime", "index.js"),
+        "spark-css": path.join(__dirname, "runtime", "index.js").replace(/\\/g, "/"),
       },
     },
 
