@@ -46,6 +46,12 @@
       "import": "./dist/plugins/webpack.mjs",
       "require": "./dist/plugins/webpack.js",
       "default": "./dist/plugins/webpack.js"
+    },
+    "./dark": {
+      "types": "./dist/dark.d.ts",
+      "import": "./dist/dark.mjs",
+      "require": "./dist/dark.js",
+      "default": "./dist/dark.js"
     }
   },
   "files": [

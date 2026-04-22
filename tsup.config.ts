@@ -58,4 +58,15 @@ export default defineConfig([
     },
   },
 
+  // Dark mode system
+  {
+    entry:     { dark: "src/dark.ts" },
+    format:    ["cjs", "esm"],
+    dts:       true,
+    clean:     false,
+    minify:    true,
+    external:  ["react"],
+    outDir:    "dist",
+  },
+
 ]);
