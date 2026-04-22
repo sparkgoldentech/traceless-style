@@ -24,6 +24,12 @@ import {
   DEFAULT_VARIANTS,
   type FlatVariants,
 } from "../compiler/variants";
+import {
+  lint,
+  formatLintErrors,
+  type LintOptions,
+  DEFAULT_LINT_OPTIONS,
+} from "../compiler/lint";
 
 export interface ExtractOptions {
   srcDir?:  string;
@@ -31,6 +37,8 @@ export interface ExtractOptions {
   outMeta?: string;
   dev?:     boolean;
   silent?:  boolean;
+  /** Lint rules — enforce spark-css usage patterns */
+  lint?:    LintOptions | false;
 }
 
 export interface ExtractResult {
@@ -88,6 +96,22 @@ export async function extract(opts: ExtractOptions = {}): Promise<ExtractResult>
 
   for (const file of files) {
     const src    = fs.readFileSync(file, "utf8");
+
+    /* ── Lint check — enforce spark-css rules ── */
+    if (opts.lint !== false) {
+      const lintOpts = opts.lint ?? DEFAULT_LINT_OPTIONS;
+      const lintErrors = lint(src, file, lintOpts);
+      if (lintErrors.length > 0) {
+        const formatted = formatLintErrors(lintErrors, ROOT);
+        if (opts.dev) {
+          console.warn(formatted);
+        } else {
+          console.error(formatted);
+          process.exit(1); // Hard fail in production builds
+        }
+      }
+    }
+
     const result = transform(src, file, allCustomVariants);
 
     result.errors.forEach(e => {
