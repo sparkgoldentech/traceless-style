@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig([
-  // Runtime — tiny, used by app code
+  // Runtime — tiny client bundle
   {
     entry:     { "runtime/index": "src/runtime/index.ts" },
     format:    ["cjs", "esm"],
@@ -18,21 +18,33 @@ export default defineConfig([
     format:    ["cjs", "esm"],
     dts:       true,
     clean:     false,
-    minify:    true,
-    external:  ["react", "next", "webpack", "path", "fs", "./plugins/webpack", "../plugins/webpack"],
+    minify:    false,
+    external:  ["react", "next", "webpack", "path", "fs",
+                "./plugins/webpack", "../plugins/webpack",
+                "./cli/extract-fn", "../cli/extract-fn"],
     outDir:    "dist",
   },
-  // Webpack plugin — Node.js, no minify
+  // Webpack plugin
   {
     entry:     { "plugins/webpack": "src/plugins/webpack.ts" },
     format:    ["cjs", "esm"],
     dts:       true,
     clean:     false,
     minify:    false,
-    external:  ["webpack", "path", "fs"],
+    external:  ["webpack", "path", "fs", "./compiler/extractor", "./compiler/css-gen", "./cli/extract-fn"],
     outDir:    "dist",
   },
-  // CLI — use ESM format so shebang works on line 1
+  // Extract function (shared)
+  {
+    entry:     { "cli/extract-fn": "src/cli/extract-fn.ts" },
+    format:    ["cjs", "esm"],
+    dts:       true,
+    clean:     false,
+    minify:    false,
+    external:  ["path", "fs", "./compiler/extractor", "./compiler/css-gen"],
+    outDir:    "dist",
+  },
+  // CLI binary
   {
     entry:     { "cli/extract": "src/cli/extract.ts" },
     format:    ["esm"],
@@ -41,10 +53,9 @@ export default defineConfig([
     minify:    false,
     external:  ["path", "fs"],
     outDir:    "dist",
-    // shebang must be the very first line — footer trick doesn't work
-    // Instead we patch after build via onSuccess
     esbuildOptions(options) {
       options.banner = { js: "#!/usr/bin/env node" };
     },
   },
+
 ]);
