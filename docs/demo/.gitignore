@@ -1,0 +1,6 @@
+node_modules
+dist
+.vite
+.traceless-style
+public/traceless-style.css
+public/traceless-style.css.map
