@@ -1,5 +1,5 @@
 /**
- * spark-css — types/css.ts
+ * traceless-style — types/css.ts
  *
  * Full TypeScript-safe CSS property types.
  * Every property is typed with its valid values.
