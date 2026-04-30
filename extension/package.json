@@ -1,0 +1,256 @@
+{
+  "name": "traceless-style-vscode",
+  "displayName": "traceless-style",
+  "description": "IDE-grade tooling for traceless-style: autocomplete, color swatches, hover docs, diagnostics, code actions, outline, definitions, references, rename, signature help, folding, selection ranges, workspace search, inlay hints, snippets, and a privacy-respecting status bar.",
+  "version": "0.4.0",
+  "publisher": "sparkgoldentech",
+  "license": "MIT",
+  "author": "Spark Golden Tech <contact@sparkgoldentech.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sparkgoldentech/traceless-style",
+    "directory": "extension"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "traceless-style",
+    "atomic-css",
+    "css-in-js",
+    "stylex",
+    "zero-runtime",
+    "intellisense",
+    "linter"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact",
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true,
+      "description": "traceless-style is a pure language-services extension. It reads source text, never executes user code, and makes no network calls."
+    },
+    "virtualWorkspaces": true
+  },
+  "contributes": {
+    "configuration": {
+      "title": "traceless-style",
+      "properties": {
+        "traceless-style.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable autocomplete, hover, swatches, diagnostics, and outline inside tl.create({...})."
+        },
+        "traceless-style.diagnostics": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inline squigglies for unknown CSS properties, non-literal values, and suspicious value content."
+        },
+        "traceless-style.identifierAliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "tl"
+          ],
+          "description": "Identifiers treated as the traceless-style API root."
+        },
+        "traceless-style.inlayHints": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show ghost-text rule counts next to each tl.create group key."
+        },
+        "traceless-style.statusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the current file's group + rule count in the status bar."
+        },
+        "traceless-style.trace": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Diagnostic logging to the 'traceless-style' output channel (local only — no telemetry)."
+        },
+        "traceless-style.contrast.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Inline WCAG contrast diagnostics inside tl.create({...}) — flags text + UI-component pairs that fall below 1.4.3 / 1.4.6 / 1.4.11. Quick-fixes apply hue-preserving accessibility-grade replacements."
+        },
+        "traceless-style.contrast.level": {
+          "type": "string",
+          "enum": [
+            "AA",
+            "AAA"
+          ],
+          "default": "AA",
+          "description": "Highest WCAG tier the diagnostics aim for. AA is the legal floor (Section 508, EN 301 549). AAA is best-effort enhanced contrast (matches Apple HIG / IBM Carbon / Microsoft Fluent published bars)."
+        },
+        "traceless-style.contrast.surfaceLight": {
+          "type": "string",
+          "default": "#fafafa",
+          "description": "Assumed page surface color in light mode. Used to composite translucent backgrounds before measurement."
+        },
+        "traceless-style.contrast.surfaceDark": {
+          "type": "string",
+          "default": "#0a0a0f",
+          "description": "Assumed page surface color in dark mode. Used to composite translucent backgrounds before measurement."
+        },
+        "traceless-style.codeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show an actionable summary line above each tl.create / tl.keyframes / tl.extend call (rule counts, variant counts, dark-override counts, plus quick-action links)."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "traceless-style.sortKeys",
+        "title": "traceless-style: Sort tl.create keys at cursor",
+        "category": "traceless-style"
+      },
+      {
+        "command": "traceless-style.showLogs",
+        "title": "traceless-style: Show output / logs",
+        "category": "traceless-style"
+      },
+      {
+        "command": "traceless-style.previewCss",
+        "title": "traceless-style: Preview emitted CSS for the active file",
+        "category": "traceless-style",
+        "icon": "$(file-code)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "when": "editorLangId =~ /typescript|typescriptreact|javascript|javascriptreact/",
+          "command": "traceless-style.previewCss",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "traceless-style.previewCss",
+          "when": "editorLangId =~ /typescript|typescriptreact|javascript|javascriptreact/"
+        },
+        {
+          "command": "traceless-style.sortKeys",
+          "when": "editorLangId =~ /typescript|typescriptreact|javascript|javascriptreact/"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "traceless-style.previewCss",
+        "key":     "ctrl+alt+p",
+        "mac":     "cmd+alt+p",
+        "when":    "editorTextFocus && editorLangId =~ /typescript|typescriptreact|javascript|javascriptreact/"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "typescript",
+        "path": "./snippets/traceless-style.json"
+      },
+      {
+        "language": "typescriptreact",
+        "path": "./snippets/traceless-style.json"
+      },
+      {
+        "language": "javascript",
+        "path": "./snippets/traceless-style.json"
+      },
+      {
+        "language": "javascriptreact",
+        "path": "./snippets/traceless-style.json"
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "traceless-style.getStarted",
+        "title": "Get started with traceless-style",
+        "description": "A 60-second tour of every IDE feature this extension adds.",
+        "steps": [
+          {
+            "id": "install",
+            "title": "Install the library in your project",
+            "description": "Run `npm install traceless-style` in your project, then `npx traceless-style init` to scaffold layout, scripts, and config.",
+            "media": {
+              "markdown": "media/walk-install.md"
+            }
+          },
+          {
+            "id": "autocomplete",
+            "title": "Autocomplete inside tl.create",
+            "description": "Open any .tsx file. Type `tl.create({ btn: { p` — autocomplete shows every CSS property prefixed with `p`. Pick one with Tab.",
+            "media": {
+              "markdown": "media/walk-autocomplete.md"
+            }
+          },
+          {
+            "id": "swatches",
+            "title": "Inline color swatches",
+            "description": "Color values get an inline swatch. Click the swatch to open VS Code's native color picker — format-preserving when you pick a new value.",
+            "media": {
+              "markdown": "media/walk-swatches.md"
+            }
+          },
+          {
+            "id": "diagnostics",
+            "title": "Inline diagnostics",
+            "description": "Typos like `colour: \"red\"` get a red squiggle. Press `Ctrl+.` for a one-click \"Replace with `color`\" quick-fix.",
+            "media": {
+              "markdown": "media/walk-diagnostics.md"
+            }
+          },
+          {
+            "id": "navigation",
+            "title": "Jump, find, rename",
+            "description": "Ctrl+click `$.btn` → its declaration. Shift+F12 → every usage. F2 → rename atomically across the file.",
+            "media": {
+              "markdown": "media/walk-navigation.md"
+            }
+          },
+          {
+            "id": "outline",
+            "title": "Outline + workspace search",
+            "description": "Ctrl+Shift+O — outline of the current file. Ctrl+T — search every group across the whole project.",
+            "media": {
+              "markdown": "media/walk-outline.md"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "build": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --platform=node --format=cjs --target=node18 --minify",
+    "dev": "esbuild src/extension.ts --bundle --outfile=out/extension.js --external:vscode --platform=node --format=cjs --target=node18 --watch",
+    "package": "vsce package --no-dependencies",
+    "test": "tsx --test 'src/**/*.test.ts'"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.21.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.0.0"
+  }
+}

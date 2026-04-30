@@ -1,12 +1,12 @@
 {
-  "name": "spark-css",
+  "name": "traceless-style",
   "version": "3.0.0",
-  "description": "Zero-runtime atomic CSS. Build-time compilation. Safe AST parser. Webpack + Turbopack. Server Components. No Babel.",
+  "description": "Zero-runtime atomic CSS. Build-time compilation. Safe AST parser. Webpack + Turbopack + Vite + Rollup + esbuild. Server Components. No Babel.",
   "author": "Spark Golden Tech <contact@sparkgoldentech.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sparkgoldentech/spark-css"
+    "url": "https://github.com/sparkgoldentech/traceless-style"
   },
   "keywords": [
     "css-in-js",
@@ -26,7 +26,7 @@
   "module": "./dist/runtime/index.mjs",
   "types": "./dist/runtime/index.d.ts",
   "bin": {
-    "spark-css": "./dist/cli/extract.js"
+    "traceless-style": "./dist/cli/extract.mjs"
   },
   "exports": {
     ".": {
@@ -47,11 +47,35 @@
       "require": "./dist/plugins/webpack.js",
       "default": "./dist/plugins/webpack.js"
     },
+    "./vite": {
+      "types": "./dist/plugins/vite.d.ts",
+      "import": "./dist/plugins/vite.mjs",
+      "require": "./dist/plugins/vite.js",
+      "default": "./dist/plugins/vite.js"
+    },
+    "./rollup": {
+      "types": "./dist/plugins/rollup.d.ts",
+      "import": "./dist/plugins/rollup.mjs",
+      "require": "./dist/plugins/rollup.js",
+      "default": "./dist/plugins/rollup.js"
+    },
+    "./esbuild": {
+      "types": "./dist/plugins/esbuild.d.ts",
+      "import": "./dist/plugins/esbuild.mjs",
+      "require": "./dist/plugins/esbuild.js",
+      "default": "./dist/plugins/esbuild.js"
+    },
     "./dark": {
       "types": "./dist/dark.d.ts",
       "import": "./dist/dark.mjs",
       "require": "./dist/dark.js",
       "default": "./dist/dark.js"
+    },
+    "./rtl": {
+      "types": "./dist/rtl.d.ts",
+      "import": "./dist/rtl.mjs",
+      "require": "./dist/rtl.js",
+      "default": "./dist/rtl.js"
     }
   },
   "files": [
@@ -60,14 +84,15 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup && node -e \"const fs=require('fs');const f='dist/cli/extract.mjs';let c=fs.readFileSync(f,'utf8');c=c.replace('#!/usr/bin/env node\\n','');fs.writeFileSync(f,c);console.log('CLI shebang stripped');\"",
+    "build": "tsup && node scripts/post-build.mjs",
     "dev": "tsup --watch",
-    "test": "node test/test.mjs",
+    "test": "vitest run",
+    "bench": "npm run build && node bench/run-all.mjs",
     "prepublishOnly": "npm run build && npm test"
   },
   "peerDependencies": {
-    "react": ">=18.0.0",
-    "next": ">=14.0.0"
+    "next": ">=14.0.0",
+    "react": ">=18.0.0"
   },
   "peerDependenciesMeta": {
     "next": {
@@ -75,7 +100,13 @@
     },
     "webpack": {
       "optional": true
+    },
+    "vite": {
+      "optional": true
     }
+  },
+  "optionalDependencies": {
+    "@swc/core": "^1.7.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -84,6 +115,7 @@
     "next": ">=15.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0",
+    "vitest": "^4.1.5",
     "webpack": "^5.0.0"
   }
 }

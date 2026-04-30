@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>traceless-style</title>
+    <link rel="stylesheet" href="out/panel.css">
+  </head>
+  <body class="panel">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-dot" aria-hidden="true"></span>
+        <span class="brand-text">traceless-style</span>
+      </div>
+      <!-- Connection-state pill — labeled, live-updated by robust.ts.
+           Green when fresh, amber while scanning/retrying, red on hard
+           failure. The label is visible so users immediately see the
+           panel's health state. Same UX big-tech DevTools panels
+           (React, Vue, Apollo, Redux) ship with. -->
+      <span id="conn-status" class="conn-pill" data-state="ok" role="status" aria-live="polite" title="Connected">
+        <span class="conn-dot" aria-hidden="true"></span>
+        <span class="conn-label">Connected</span>
+      </span>
+      <!-- Diff badge — appears when the latest scan differs from the
+           previous one. Hidden when there's nothing to show. -->
+      <span id="diff-badge" class="diff-badge" hidden></span>
+      <button id="picker" class="btn-ghost" title="Pick an element on the page (Ctrl+Shift+P)" aria-label="Pick element">
+        <span class="picker-icon" aria-hidden="true">⌖</span>
+      </button>
+      <button id="search"  class="btn-ghost" title="Global search (Ctrl+Shift+F)" aria-label="Global search">⌕</button>
+      <div class="status" id="status" role="status" aria-live="polite">Detecting…</div>
+      <button id="help"    class="btn-ghost" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">⌨</button>
+      <button id="about"   class="btn-ghost" title="About"                  aria-label="About this extension">?</button>
+      <button id="refresh" class="btn-ghost" title="Re-scan the page (Ctrl+R)" aria-label="Re-scan">↻</button>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="traceless-style sections">
+      <button class="tab active" role="tab" aria-selected="true"  aria-controls="view-inspector"  data-tab="inspector"  data-key="1">Inspector</button>
+      <button class="tab"        role="tab" aria-selected="false" aria-controls="view-classes"    data-tab="classes"    data-key="2">Classes</button>
+      <button class="tab"        role="tab" aria-selected="false" aria-controls="view-tokens"     data-tab="tokens"     data-key="3">Tokens</button>
+      <button class="tab"        role="tab" aria-selected="false" aria-controls="view-theme"      data-tab="theme"      data-key="4">Theme</button>
+      <button class="tab"        role="tab" aria-selected="false" aria-controls="view-animations" data-tab="animations" data-key="5">Animations</button>
+      <button class="tab"        role="tab" aria-selected="false" aria-controls="view-stats"      data-tab="stats"      data-key="6">Stats</button>
+      <button class="tab"        role="tab" aria-selected="false" aria-controls="view-a11y"       data-tab="a11y"       data-key="7">A11y</button>
+      <button class="tab"        role="tab" aria-selected="false" aria-controls="view-settings"   data-tab="settings"   data-key="8">Settings</button>
+    </nav>
+
+    <main class="content">
+      <!-- Top-level error banner. Hidden until a fatal eval fails. -->
+      <div class="error-banner" id="error-banner" hidden role="alert">
+        <span id="error-message"></span>
+        <button class="btn-secondary" id="error-retry">Retry</button>
+      </div>
+
+      <!-- Inspector — shows tl* classes on the currently selected element ($0). -->
+      <section class="view active" data-view="inspector" role="tabpanel" id="view-inspector" aria-labelledby="tab-inspector">
+        <div class="empty" id="inspector-empty">
+          <p>Select an element in the Elements panel, or click the <strong>⌖</strong> button above to pick one on the page.</p>
+        </div>
+        <div id="inspector-body" hidden>
+          <div class="meta" id="inspector-target"></div>
+          <div class="cascade-toggle">
+            <label><input type="checkbox" id="cascade-only"> Show only winning rule per property (cascade view)</label>
+          </div>
+          <table class="rule-table"><thead><tr>
+            <th scope="col">class</th><th scope="col">property</th><th scope="col">value</th><th scope="col">variant</th><th scope="col" class="sr-only">actions</th>
+          </tr></thead><tbody id="inspector-rows"></tbody></table>
+        </div>
+      </section>
+
+      <!-- Classes — searchable list of every tl* class on the page. -->
+      <section class="view" data-view="classes" role="tabpanel" id="view-classes">
+        <div class="toolbar">
+          <input type="search" id="class-search" placeholder="Filter by class, prop, or value — `prop:value` for both…" aria-label="Filter classes">
+          <label class="muted small chip-toggle">
+            <input type="checkbox" id="show-unused-only">
+            Unused only
+          </label>
+          <span class="muted" id="class-count">0 classes</span>
+        </div>
+        <div id="class-table-wrap" class="virtualized">
+          <table class="rule-table"><thead><tr>
+            <th scope="col">class</th><th scope="col">property</th><th scope="col">value</th><th scope="col">variant</th><th scope="col" class="num">used</th><th scope="col" class="sr-only">actions</th>
+          </tr></thead><tbody id="class-rows"></tbody></table>
+        </div>
+      </section>
+
+      <!-- Tokens — every --tl-* CSS variable on :root, with light + dark values. -->
+      <section class="view" data-view="tokens" role="tabpanel" id="view-tokens">
+        <div class="toolbar">
+          <input type="search" id="token-search" placeholder="Filter tokens…" aria-label="Filter tokens">
+          <span class="muted" id="token-count">0 tokens</span>
+        </div>
+        <p class="muted small">Click any value to live-edit. Changes apply via <code>--tl-*</code> override on <code>:root</code> — survive until reload.</p>
+        <table class="rule-table"><thead><tr>
+          <th scope="col">name</th><th scope="col">light</th><th scope="col">dark</th>
+        </tr></thead><tbody id="token-rows"></tbody></table>
+      </section>
+
+      <!-- Theme — toggles + theme switcher. -->
+      <section class="view" data-view="theme" role="tabpanel" id="view-theme">
+        <div class="card">
+          <h3>Mode</h3>
+          <div class="row">
+            <button id="toggle-dark" class="btn">Toggle dark</button>
+            <span class="muted" id="dark-state" aria-live="polite">…</span>
+          </div>
+          <div class="row">
+            <button id="toggle-rtl"  class="btn">Toggle RTL</button>
+            <span class="muted" id="dir-state" aria-live="polite">…</span>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Themes</h3>
+          <p class="muted small">Click a theme to apply its class to <code>&lt;body&gt;</code>.</p>
+          <div id="theme-list"></div>
+        </div>
+      </section>
+
+      <!-- Animations — every @keyframes rule with preview. -->
+      <section class="view" data-view="animations" role="tabpanel" id="view-animations">
+        <div class="toolbar">
+          <input type="search" id="kf-search" placeholder="Filter animations…" aria-label="Filter animations">
+          <span class="muted" id="kf-count">0 animations</span>
+        </div>
+        <div id="kf-list"></div>
+      </section>
+
+      <!-- Stats — page-wide counts. -->
+      <section class="view" data-view="stats" role="tabpanel" id="view-stats">
+        <div class="grid">
+          <div class="stat"><div class="stat-num" id="stat-rules">—</div><div class="stat-label">total rules</div></div>
+          <div class="stat"><div class="stat-num" id="stat-used">—</div><div class="stat-label">classes used</div></div>
+          <div class="stat"><div class="stat-num" id="stat-bytes">—</div><div class="stat-label">CSS bundle size</div></div>
+          <div class="stat"><div class="stat-num" id="stat-tokens">—</div><div class="stat-label">tokens defined</div></div>
+          <div class="stat"><div class="stat-num" id="stat-themes">—</div><div class="stat-label">themes</div></div>
+          <div class="stat"><div class="stat-num" id="stat-anims">—</div><div class="stat-label">animations</div></div>
+          <div class="stat"><div class="stat-num" id="stat-scantime">—</div><div class="stat-label">last scan</div></div>
+        </div>
+        <p class="muted small" style="margin-top: 16px">
+          Bundle size is measured from the page's CSSOM after the file is parsed —
+          gzipped over-the-wire size will be substantially smaller.
+        </p>
+      </section>
+
+      <!-- A11y — live page contrast audit. WCAG 2.1 §1.4.3 / §1.4.6 + APCA Lc. -->
+      <section class="view" data-view="a11y" role="tabpanel" id="view-a11y">
+        <div class="card">
+          <h3>Accessibility audit</h3>
+          <p class="muted small">
+            Walks every visible text element on the page, computes its WCAG
+            contrast ratio against the EFFECTIVE (composited) background,
+            and reports anything below
+            <strong>4.5:1</strong> normal text /
+            <strong>3:1</strong> large or UI.
+            APCA Lc is shown alongside as a forward-compat readout (WCAG 3 working draft).
+          </p>
+          <div class="row">
+            <button class="btn" id="a11y-run">Run audit</button>
+            <span class="muted small" id="a11y-status">Click to scan the page.</span>
+          </div>
+        </div>
+        <div class="card" id="a11y-results-card" hidden>
+          <h3>Findings</h3>
+          <div class="toolbar">
+            <input type="search" id="a11y-search" placeholder="Filter by selector or text…" aria-label="Filter findings">
+            <span class="muted small" id="a11y-count">0 findings</span>
+          </div>
+          <table class="rule-table"><thead><tr>
+            <th scope="col">severity</th>
+            <th scope="col">element</th>
+            <th scope="col" class="num">ratio</th>
+            <th scope="col" class="num">APCA</th>
+            <th scope="col">fg / bg</th>
+            <th scope="col">standard</th>
+          </tr></thead><tbody id="a11y-rows"></tbody></table>
+        </div>
+      </section>
+
+      <!-- Settings — feature toggles + export -->
+      <section class="view" data-view="settings" role="tabpanel" id="view-settings">
+        <div class="card">
+          <h3>Display</h3>
+          <label class="setting-row">
+            <input type="checkbox" id="setting-color-swatches" checked>
+            <span>Show color swatches inline</span>
+          </label>
+          <label class="setting-row">
+            <input type="checkbox" id="setting-element-counts" checked>
+            <span>Show "used" counts in the Classes tab</span>
+          </label>
+          <label class="setting-row">
+            <input type="checkbox" id="setting-conflicts" checked>
+            <span>Highlight property conflicts in Inspector</span>
+          </label>
+          <label class="setting-row">
+            <input type="checkbox" id="setting-auto-refresh" checked>
+            <span>Auto-refresh on page navigation + CSS reload</span>
+          </label>
+        </div>
+        <div class="card">
+          <h3>Export</h3>
+          <p class="muted small">Export the current panel state for sharing or offline analysis.</p>
+          <div class="row">
+            <button class="btn" id="export-json">Export JSON</button>
+            <button class="btn-secondary" id="export-css">Export CSS</button>
+            <span class="muted small" id="export-status"></span>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Privacy</h3>
+          <p class="muted small">
+            <strong>Telemetry-free.</strong> The extension sends nothing,
+            anywhere. Settings persist in this browser's <code>localStorage</code>
+            for the panel's origin only.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Reset</h3>
+          <div class="row">
+            <button class="btn-secondary" id="reset-settings">Reset all settings</button>
+            <span class="muted small" id="reset-status"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Non-blocking "not detected" notice — sits inline ABOVE the
+           tab content so the user can still navigate tabs, dismiss it,
+           or switch to another page. -->
+      <div class="info-banner" id="not-detected" hidden role="status">
+        <div class="info-banner-body">
+          <strong>No traceless-style detected on this page.</strong>
+          <span class="muted small">
+            Common reasons: the page is loading (click <span class="kbd">↻</span> to re-scan), the CSS file failed to load, or the build hasn't run yet (<code>traceless-style build</code>).
+          </span>
+        </div>
+        <div class="info-banner-actions">
+          <a href="https://traceless-style.dev" target="_blank" rel="noreferrer" class="btn-ghost">Docs ↗</a>
+          <button class="btn-ghost" id="not-detected-close" aria-label="Dismiss this notice">✕</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Global search overlay (Ctrl+Shift+F). Searches across classes,
+         tokens, themes, and animations in one box. -->
+    <div class="dialog-backdrop" id="search-backdrop" hidden>
+      <div class="dialog dialog-wide" role="dialog" aria-modal="true" aria-labelledby="search-title">
+        <header class="dialog-head">
+          <h2 id="search-title">Global search</h2>
+          <button class="btn-ghost dialog-close" id="search-close" aria-label="Close">✕</button>
+        </header>
+        <div class="dialog-body">
+          <input type="search" id="global-search" placeholder="Type to search across classes, tokens, themes, animations…" autocomplete="off">
+          <div id="global-search-results"></div>
+          <p class="muted small" style="margin-top:12px">
+            Press <span class="kbd">Esc</span> to close, <span class="kbd">Enter</span> on a result to navigate.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- About dialog. -->
+    <div class="dialog-backdrop" id="about-backdrop" hidden>
+      <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="about-title">
+        <header class="dialog-head">
+          <h2 id="about-title">traceless-style DevTools</h2>
+          <button class="btn-ghost dialog-close" id="about-close" aria-label="Close">✕</button>
+        </header>
+        <div class="dialog-body">
+          <p class="dialog-version">Version <span id="about-version">…</span></p>
+          <p class="dialog-tagline">Inspect atomic CSS classes, design tokens, dark mode, and RTL state on any page.</p>
+          <div class="badge-row">
+            <span class="privacy-badge" title="No telemetry, no analytics, no data leaves your machine.">
+              <span aria-hidden="true">🔒</span> Telemetry-free
+            </span>
+            <span class="privacy-badge" title="Manifest V3 with zero host permissions.">
+              <span aria-hidden="true">⚙</span> Zero permissions
+            </span>
+          </div>
+          <ul class="dialog-links">
+            <li><a href="https://traceless-style.dev"                       target="_blank" rel="noreferrer">Documentation</a></li>
+            <li><a href="https://github.com/sparkgoldentech/traceless-style" target="_blank" rel="noreferrer">Source on GitHub</a></li>
+            <li><a href="https://github.com/sparkgoldentech/traceless-style/issues" target="_blank" rel="noreferrer">Report an issue</a></li>
+            <li><a href="https://github.com/sparkgoldentech/traceless-style/blob/main/devtools/CHANGELOG.md" target="_blank" rel="noreferrer">Changelog</a></li>
+            <li><a href="https://github.com/sparkgoldentech/traceless-style/blob/main/devtools/LICENSE"      target="_blank" rel="noreferrer">License (MIT)</a></li>
+          </ul>
+          <footer class="dialog-foot">
+            Built by <a href="https://sparkgoldentech.com" target="_blank" rel="noreferrer">Spark Golden Tech</a>.
+          </footer>
+        </div>
+      </div>
+    </div>
+
+    <!-- Keyboard-shortcut cheat sheet. -->
+    <div class="dialog-backdrop" id="help-backdrop" hidden>
+      <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="help-title">
+        <header class="dialog-head">
+          <h2 id="help-title">Keyboard shortcuts</h2>
+          <button class="btn-ghost dialog-close" id="help-close" aria-label="Close">✕</button>
+        </header>
+        <div class="dialog-body">
+          <table class="kbd-table">
+            <tbody>
+              <tr><td><span class="kbd">1</span>–<span class="kbd">6</span></td><td>Switch tab</td></tr>
+              <tr><td><span class="kbd">/</span></td><td>Focus the active tab's search box</td></tr>
+              <tr><td><span class="kbd">Ctrl</span>+<span class="kbd">R</span></td><td>Re-scan the page</td></tr>
+              <tr><td><span class="kbd">Ctrl</span>+<span class="kbd">Shift</span>+<span class="kbd">P</span></td><td>Toggle element picker</td></tr>
+              <tr><td><span class="kbd">?</span></td><td>Show this dialog</td></tr>
+              <tr><td><span class="kbd">Esc</span></td><td>Cancel picker / close dialog / blur input</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom toast for transient feedback. -->
+    <div id="toast" class="toast" hidden></div>
+
+    <script src="out/panel.js"></script>
+  </body>
+</html>

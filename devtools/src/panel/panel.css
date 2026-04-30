@@ -1,0 +1,816 @@
+/**
+ * traceless-style DevTools panel — visual style.
+ *
+ * Mirrors Chrome DevTools' own dark theme so the panel feels native.
+ * Uses CSS variables for light/dark adapt: Chrome doesn't expose its
+ * theme to extensions (yet), so we follow `prefers-color-scheme` on
+ * DevTools' own theme — which works for the vast majority of users.
+ */
+
+:root {
+  --bg:        #1f1f1f;
+  --bg-alt:    #292929;
+  --bg-hover:  #353535;
+  --fg:        #e8eaed;
+  --fg-muted:  #9aa0a6;
+  --fg-faint:  rgba(232, 234, 237, 0.4);
+  --accent:    #ff6f00;
+  --accent-fg: #1f1f1f;
+  --border:    #3c4043;
+  --green:     #1ed760;
+  --blue:      #8ab4f8;
+  --mono:      ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg:        #ffffff;
+    --bg-alt:    #f8f9fa;
+    --bg-hover:  #f1f3f4;
+    --fg:        #202124;
+    --fg-muted:  #5f6368;
+    --fg-faint:  rgba(32, 33, 36, 0.4);
+    --accent:    #ff6f00;
+    --accent-fg: #ffffff;
+    --border:    #dadce0;
+  }
+}
+
+* { box-sizing: border-box; }
+
+/* Force-honor the `hidden` HTML attribute. Without this, any element we
+   give a `display: flex/grid/block` to (dialog backdrops, banners, toast)
+   stays visible when JS sets `el.hidden = true`, because author styles
+   override the UA's [hidden]{display:none}. This was the "frozen popup"
+   bug in v0.3.0 — never let it happen again. */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Top bar ─────────────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-alt);
+  flex-shrink: 0;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+.brand-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: inline-block;
+}
+.status {
+  flex: 1;
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+.btn-ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--fg-muted);
+  font-size: 14px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.btn-ghost:hover { background: var(--bg-hover); border-color: var(--border); color: var(--fg); }
+
+/* ── Tabs ────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 1px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-alt);
+  flex-shrink: 0;
+}
+.tab {
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  font-size: 12px;
+  margin-bottom: -1px;
+}
+.tab:hover { color: var(--fg); }
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Views ───────────────────────────────────────────── */
+.content { flex: 1; overflow: hidden; position: relative; }
+.view {
+  position: absolute; inset: 0;
+  overflow: auto;
+  padding: 12px;
+  display: none;
+}
+.view.active { display: block; }
+
+.empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+
+/* ── Toolbar (search rows) ───────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.toolbar input[type="search"] {
+  flex: 1;
+  padding: 4px 8px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--fg);
+  font-size: 12px;
+  font-family: inherit;
+}
+.toolbar input[type="search"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.muted { color: var(--fg-muted); }
+.muted.small { font-size: 11px; }
+
+/* ── Tables ──────────────────────────────────────────── */
+.rule-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+.rule-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--fg-muted);
+  border-bottom: 1px solid var(--border);
+  padding: 4px 8px;
+  background: var(--bg-alt);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.rule-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.rule-table tbody tr:hover { background: var(--bg-hover); }
+.rule-table .cls       { color: var(--accent); cursor: pointer; }
+.rule-table .cls:hover { text-decoration: underline; }
+.rule-table .prop      { color: var(--blue); }
+.rule-table .value     { color: var(--fg); white-space: pre-wrap; word-break: break-word; }
+.rule-table .variant   { color: var(--fg-muted); }
+.rule-table .num       { text-align: right; min-width: 48px; }
+
+.color-swatch {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+  border: 1px solid var(--fg-faint);
+}
+
+/* ── Theme view cards ────────────────────────────────── */
+.card {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.card h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+.btn {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  padding: 5px 14px;
+  border-radius: 4px;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn-secondary {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+
+/* ── Theme list ─────────────────────────────────────── */
+.theme-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.theme-row:hover { background: var(--bg-hover); }
+.theme-row .theme-cls   { font-family: var(--mono); font-size: 11.5px; }
+.theme-row.active       { background: rgba(255,111,0,0.12); }
+.theme-row.active .theme-cls { color: var(--accent); }
+
+/* ── Stats grid ──────────────────────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.stat {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  text-align: center;
+}
+.stat-num {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--accent);
+  line-height: 1;
+}
+.stat-label {
+  margin-top: 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+}
+
+.meta {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--fg-muted);
+  margin-bottom: 8px;
+}
+
+/* ── Picker button (active state) ──────────────────── */
+.btn-ghost.active {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+.picker-icon { font-size: 14px; line-height: 1; }
+
+/* ── Cascade view toggle row ───────────────────────── */
+.cascade-toggle {
+  margin: 4px 0 8px;
+  font-size: 11.5px;
+  color: var(--fg-muted);
+}
+.cascade-toggle label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.cascade-toggle input { margin: 0; }
+
+/* ── Conflict / overridden row styling ─────────────── */
+.rule-table tr.overridden td.value,
+.rule-table tr.overridden td.prop {
+  text-decoration: line-through;
+  color: var(--fg-faint);
+}
+.rule-table tr.winner    td.value { color: var(--green); }
+.rule-table tr.conflict  td.prop  {
+  position: relative;
+}
+.rule-table tr.conflict  td.prop::after {
+  content: " ⚠";
+  color: #ffb74d;
+  font-size: 10px;
+  margin-inline-start: 4px;
+}
+
+/* ── Live-edit affordances ─────────────────────────── */
+.editable {
+  cursor: text;
+  border-radius: 2px;
+  padding: 0 2px;
+  margin: 0 -2px;
+}
+.editable:hover { background: var(--bg-hover); }
+.editable.editing {
+  background: var(--bg);
+  outline: 1px solid var(--accent);
+  outline-offset: 0;
+}
+
+/* Inline action buttons (copy, etc.) on rule rows. */
+.row-actions {
+  text-align: right;
+  white-space: nowrap;
+  width: 1%;
+}
+.icon-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--fg-faint);
+  padding: 0 5px;
+  font-size: 11px;
+  line-height: 16px;
+  font-family: inherit;
+}
+.icon-btn:hover { background: var(--bg-hover); color: var(--fg); border-color: var(--border); }
+
+/* ── Animations tab ────────────────────────────────── */
+.kf-row {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.kf-row .kf-name {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+}
+.kf-row .kf-meta {
+  font-size: 11px;
+  color: var(--fg-muted);
+  margin-top: 2px;
+}
+.kf-row pre {
+  margin: 8px 0 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+  overflow: auto;
+  max-height: 180px;
+  color: var(--fg);
+}
+.kf-row .kf-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.kf-preview {
+  width: 36px; height: 36px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--accent), #ec4899);
+  box-shadow: 0 2px 8px rgba(255, 111, 0, 0.4);
+  /* When the play-preview button injects a keyframe and applies it via
+     element.style.animation, the keyframe rules animate transform /
+     opacity / etc. Defaults below provide a sensible starting point so
+     animations that change those properties have something to morph FROM. */
+  transform: translateY(0) scale(1);
+  opacity: 1;
+  animation-fill-mode: both;
+}
+
+/* ── Connection-state pill (topbar — labeled and prominent) ───────
+ *
+ * Live-updated by robust.ts. Same UX shape React DevTools / Apollo /
+ * Redux DevTools ship with: colored dot + label. Visible at a glance,
+ * so users immediately know whether the panel is fresh, scanning, or
+ * disconnected.
+ */
+.conn-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 8px;
+  margin: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: rgba(127,127,127,0.12);
+  color: var(--fg);
+  border: 1px solid rgba(127,127,127,0.22);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.conn-pill .conn-dot {
+  display: inline-block;
+  width:  8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--fg-muted);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.conn-pill[data-state="ok"]       { background: rgba(30,215,96,0.12);  border-color: rgba(30,215,96,0.35);  }
+.conn-pill[data-state="ok"]       .conn-dot { background: var(--green); box-shadow: 0 0 6px rgba(30,215,96,0.6); }
+.conn-pill[data-state="scanning"] { background: rgba(251,191,36,0.14); border-color: rgba(251,191,36,0.45); }
+.conn-pill[data-state="scanning"] .conn-dot { background: #fbbf24; animation: tl-pulse 1.2s ease-in-out infinite; }
+.conn-pill[data-state="retrying"] { background: rgba(251,146,60,0.18); border-color: rgba(251,146,60,0.55); }
+.conn-pill[data-state="retrying"] .conn-dot { background: #fb923c; animation: tl-pulse 0.8s ease-in-out infinite; }
+.conn-pill[data-state="error"]    { background: rgba(241,76,76,0.16);  border-color: rgba(241,76,76,0.5);   }
+.conn-pill[data-state="error"]    .conn-dot { background: #f14c4c; }
+.conn-pill[data-state="no-page"]  { background: rgba(127,127,127,0.10); }
+.conn-pill[data-state="no-page"]  .conn-dot { background: var(--fg-faint); }
+@keyframes tl-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1;   }
+  50%      { box-shadow: 0 0 0 5px transparent; opacity: 0.55; }
+}
+
+/* ── Diff badge — what changed since last scan ────────────────────
+ *
+ * Appears next to the connection pill whenever the latest refresh
+ * shows changes (rules / used / tokens / themes / animations). Hidden
+ * until there's something to report. Visually distinct so the user
+ * spots changes at a glance.
+ */
+.diff-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  margin: 0 4px 0 0;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: rgba(138,180,248,0.14);
+  color: var(--blue);
+  border: 1px solid rgba(138,180,248,0.4);
+  white-space: nowrap;
+  animation: tl-flash 1.6s ease;
+}
+.diff-badge[hidden] { display: none; }
+@keyframes tl-flash {
+  0%, 100% { transform: scale(1); }
+  20%      { transform: scale(1.08); box-shadow: 0 0 8px rgba(138,180,248,0.5); }
+}
+
+/* ── Toast ────────────────────────────────────────────────────────
+ *
+ * Slide-up notification bar at the bottom of the panel. The robust.ts
+ * helper toggles `[hidden]` AND `.show` together so we get a clean
+ * fade. Severity tints the left border so info/warn/error are visually
+ * distinguishable at a glance.
+ */
+.toast {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 14px 8px 14px;
+  background: var(--fg);
+  color: var(--bg);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 1000;
+  border-left: 3px solid var(--fg-muted);
+  max-width: calc(100% - 48px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+}
+.toast[hidden]                  { display: none; }
+.toast.show                     { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast[data-severity="ok"]      { border-left-color: var(--green); }
+.toast[data-severity="info"]    { border-left-color: var(--blue);  }
+.toast[data-severity="warn"]    { border-left-color: #fbbf24;      }
+.toast[data-severity="error"]   { border-left-color: #f14c4c;      }
+
+/* ── Settings rows ─────────────────────────────────── */
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 12px;
+  cursor: pointer;
+}
+.setting-row input[type="checkbox"] { margin: 0; cursor: pointer; }
+.setting-row span { color: var(--fg); }
+
+/* ── Inline filter chip (e.g. "Unused only") ───────── */
+.chip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.chip-toggle:hover { background: var(--bg-hover); }
+.chip-toggle input { margin: 0; cursor: pointer; }
+
+/* ── Global search overlay ─────────────────────────── */
+.dialog-wide { max-width: 600px; }
+#global-search {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--fg);
+  font-family: inherit;
+}
+#global-search:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+#global-search-results {
+  max-height: 50vh;
+  overflow: auto;
+  margin-top: 12px;
+}
+.gs-result {
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.gs-result:hover, .gs-result.active { background: var(--bg-hover); }
+.gs-result-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.gs-result-label {
+  font-family: var(--mono);
+  color: var(--fg);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gs-result-meta {
+  color: var(--fg-muted);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* ── Unused-class row styling ─────────────────────── */
+.rule-table tr.unused td.cls,
+.rule-table tr.unused td.value {
+  opacity: 0.5;
+}
+.rule-table tr.unused td.num {
+  color: #ffb74d;
+}
+
+/* ── Compact code chip ────────────────────────────── */
+code {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--bg-alt);
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+
+/* ── Accessibility: visually hidden, screen-reader visible ─── */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  border: 0;
+}
+
+/* ── Top bar — tighter button group ─────────────── */
+.topbar .btn-ghost { font-size: 13px; padding: 2px 7px; }
+
+/* ── Focus rings for accessibility ────────────────── */
+.tab:focus-visible,
+.btn:focus-visible,
+.btn-ghost:focus-visible,
+.btn-secondary:focus-visible,
+.icon-btn:focus-visible,
+input:focus-visible,
+.theme-row:focus-visible,
+.dialog-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Reduce motion when the user requests it. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+}
+
+/* ── Error banner ────────────────────────────────── */
+.error-banner {
+  background: rgba(244, 67, 54, 0.12);
+  border: 1px solid #f44336;
+  color: #f44336;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+.error-banner button { padding: 3px 10px; font-size: 11px; }
+
+/* ── "Not detected" inline banner ────────────────── */
+/* CRITICAL: this is NOT a fullscreen overlay. It sits inside .content
+   above the tabs' active view so users can still switch tabs and
+   dismiss it via the × button. A fullscreen overlay was unclosable
+   and felt like a frozen popup — never again. */
+.info-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(255, 111, 0, 0.10);
+  border: 1px solid rgba(255, 111, 0, 0.35);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+.info-banner-body { flex: 1; line-height: 1.5; }
+.info-banner-body strong { color: var(--fg); }
+.info-banner-body .muted { display: block; margin-top: 4px; }
+.info-banner-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.info-banner-actions a.btn-ghost { text-decoration: none; }
+.kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--fg);
+  vertical-align: 1px;
+  line-height: 14px;
+}
+
+/* ── Dialog (about, help) ────────────────────────── */
+.dialog-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: fadeIn 0.12s ease;
+}
+@keyframes fadeIn   { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideIn  { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+.dialog {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 90%;
+  max-width: 460px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: slideIn 0.18s ease;
+}
+.dialog-head {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dialog-head h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.dialog-close { font-size: 14px; padding: 0 6px; }
+.dialog-body { padding: 16px; overflow: auto; }
+
+.dialog-version {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--fg-muted);
+  margin: 0;
+}
+.dialog-tagline {
+  font-size: 12px;
+  color: var(--fg);
+  margin: 8px 0 12px;
+  line-height: 1.5;
+}
+.badge-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.privacy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(30, 215, 96, 0.12);
+  color: var(--green);
+  border: 1px solid rgba(30, 215, 96, 0.28);
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.dialog-links {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+}
+.dialog-links li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.dialog-links li:last-child { border-bottom: none; }
+.dialog-links a {
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dialog-links a::after { content: "↗"; color: var(--fg-muted); }
+.dialog-links a:hover { color: var(--accent); }
+.dialog-foot {
+  font-size: 11px;
+  color: var(--fg-muted);
+  text-align: center;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.dialog-foot a { color: var(--accent); }
+
+.kbd-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.kbd-table td {
+  padding: 8px 6px;
+  font-size: 12px;
+  vertical-align: middle;
+}
+.kbd-table tr td:first-child {
+  white-space: nowrap;
+  width: 1%;
+}
+.kbd-table tr:not(:last-child) td { border-bottom: 1px solid var(--border); }
+
+/* ── Virtualized list — kept here for future expansion ─ */
+.virtualized {
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+  border-radius: 4px;
+}
