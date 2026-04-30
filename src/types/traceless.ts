@@ -1,7 +1,7 @@
  /**
- * spark-css — types/spark.ts
+ * traceless-style — types/spark.ts
  *
- * Core TypeScript types for the spark-css API.
+ * Core TypeScript types for the traceless-style API.
  * StyleX-equivalent strictness — typos caught at compile time.
  */
 
@@ -34,11 +34,11 @@ export type BuiltInVariantKey =
 ════════════════════════════════════════ */
 
 /**
- * A style definition for sc.create().
+ * A style definition for tl.create().
  * Accepts CSS properties + variant keys.
  * Variant values must be plain style objects (no nesting).
  *
- * Custom variants from sc.extend() are also accepted
+ * Custom variants from tl.extend() are also accepted
  * via the string index signature.
  */
 export type StyleDef<TVariants extends string = BuiltInVariantKey> = {
@@ -49,7 +49,7 @@ export type StyleDef<TVariants extends string = BuiltInVariantKey> = {
   };
 } & {
   /**
-   * Custom variants from sc.extend() are accepted here.
+   * Custom variants from tl.extend() are accepted here.
    * TypeScript won't autocomplete them (they're dynamic)
    * but won't throw an error either.
    */
@@ -63,7 +63,7 @@ export type StyleMap<TVariants extends string = BuiltInVariantKey> = {
   [key: string]: StyleDef<TVariants>;
 };
 
-/** The resolved output of sc.create() — maps each key to a class string */
+/** The resolved output of tl.create() — maps each key to a class string */
 export type ResolvedStyleMap<T extends StyleMap> = {
   readonly [K in keyof T]: string;
 };
@@ -73,7 +73,7 @@ export type ResolvedStyleMap<T extends StyleMap> = {
 ════════════════════════════════════════ */
 
 /**
- * Typed version of sc.create().
+ * Typed version of tl.create().
  * Returns a read-only map of key → class string.
  * Keys are typed from the input — full autocomplete.
  */
@@ -86,7 +86,7 @@ export interface CreateFn {
 ════════════════════════════════════════ */
 
 /**
- * Typed version of sc.merge().
+ * Typed version of tl.merge().
  * Accepts class strings or falsy values.
  * Returns a class string.
  */
@@ -99,7 +99,7 @@ export interface MergeFn {
 ════════════════════════════════════════ */
 
 /**
- * Typed version of sc.cx().
+ * Typed version of tl.cx().
  * Like clsx — accepts strings and conditional objects.
  */
 export interface CxFn {
@@ -117,12 +117,12 @@ export interface CxFn {
    SC.EXTEND() TYPES
 ════════════════════════════════════════ */
 
-/** Options for sc.extend() */
+/** Options for tl.extend() */
 export interface ExtendOptions {
   /**
    * Custom variant definitions.
    *
-   * Key:   variant name used in sc.create() (must be a valid CSS identifier)
+   * Key:   variant name used in tl.create() (must be a valid CSS identifier)
    * Value: CSS selector or at-rule
    *
    * Valid examples:
@@ -139,8 +139,8 @@ export interface ExtendOptions {
   variants: Record<string, string>;
 }
 
-/** A spark-css instance returned by sc.extend() */
-export interface SparkCSSInstance {
+/** A traceless-style instance returned by tl.extend() */
+export interface TracelessStyleInstance {
   /** Define styles — replaced at build time */
   create: CreateFn;
   /** Conflict-aware merge — last property wins */
@@ -154,11 +154,11 @@ export interface SparkCSSInstance {
 }
 
 /** The default sc object */
-export interface SparkCSS {
+export interface TracelessStyle {
   create:  CreateFn;
   merge:   MergeFn;
   cx:      CxFn;
-  extend:  (options: ExtendOptions) => SparkCSSInstance;
+  extend:  (options: ExtendOptions) => TracelessStyleInstance;
   variants: Record<string, string>;
 }
 
@@ -177,16 +177,16 @@ export type ValidCSSValue<T extends keyof CSSProperties> = CSSProperties[T];
  * Useful for typing className props.
  *
  * Example:
- *   const $ = sc.create({ card: {...}, title: {...} });
+ *   const $ = tl.create({ card: {...}, title: {...} });
  *   type StyleKey = StyleKeys<typeof $>; // "card" | "title"
  */
 export type StyleKeys<T extends Record<string, string>> = keyof T;
 
 /**
- * A className value — always a string (from sc.create output).
- * Use this to type className props that accept spark-css output.
+ * A className value — always a string (from tl.create output).
+ * Use this to type className props that accept traceless-style output.
  *
  * Example:
- *   interface Props { className?: SparkClassName }
+ *   interface Props { className?: TracelessClassName }
  */
-export type SparkClassName = string;
+export type TracelessClassName = string;

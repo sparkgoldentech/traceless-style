@@ -1,8 +1,8 @@
  /**
- * spark-css — compiler/variants.ts
+ * traceless-style — compiler/variants.ts
  *
  * Central variant registry. All built-in variants live here.
- * sc.extend() creates a new registry with additional variants.
+ * tl.extend() creates a new registry with additional variants.
  *
  * Variant types:
  *   Pseudo-class:   _hover    → ":hover"
@@ -22,7 +22,7 @@ export interface VariantDefinition {
    * "pseudo"    → :hover, :focus, ::before
    * "parent"    → .dark &, [dir="rtl"] &
    * "media"     → @media (...)
-   * "custom"    → user-defined via sc.extend()
+   * "custom"    → user-defined via tl.extend()
    */
   type: "pseudo" | "parent" | "media" | "custom";
   /** Human-readable description */
@@ -63,11 +63,17 @@ export const BUILT_IN_VARIANTS: VariantRegistry = {
   _empty:        { selector: ":empty",            type: "pseudo",  description: "Empty element" },
 
   /* ── Pseudo-elements ── */
-  _placeholder:  { selector: "::placeholder",     type: "pseudo",  description: "Input placeholder" },
-  _before:       { selector: "::before",          type: "pseudo",  description: "::before pseudo-element" },
-  _after:        { selector: "::after",           type: "pseudo",  description: "::after pseudo-element" },
-  _selection:    { selector: "::selection",       type: "pseudo",  description: "Text selection" },
-  _marker:       { selector: "::marker",          type: "pseudo",  description: "List marker" },
+  _placeholder:        { selector: "::placeholder",            type: "pseudo", description: "Input placeholder" },
+  _before:             { selector: "::before",                 type: "pseudo", description: "::before pseudo-element" },
+  _after:              { selector: "::after",                  type: "pseudo", description: "::after pseudo-element" },
+  _selection:          { selector: "::selection",              type: "pseudo", description: "Text selection" },
+  _marker:             { selector: "::marker",                 type: "pseudo", description: "List marker" },
+  _backdrop:           { selector: "::backdrop",               type: "pseudo", description: "Dialog / fullscreen backdrop" },
+  _fileSelectorButton: { selector: "::file-selector-button",   type: "pseudo", description: "<input type=file> button" },
+  _firstLetter:        { selector: "::first-letter",           type: "pseudo", description: "First letter" },
+  _firstLine:          { selector: "::first-line",             type: "pseudo", description: "First line" },
+  _targetText:         { selector: "::target-text",            type: "pseudo", description: "Highlighted target text" },
+  _detailsContent:     { selector: "::details-content",        type: "pseudo", description: "<details> content area" },
 
   /* ── Parent/ancestor selectors ── */
   _dark:         { selector: ":is(.dark *)",          type: "parent", description: "Dark mode (class strategy)" },
@@ -88,6 +94,11 @@ export const BUILT_IN_VARIANTS: VariantRegistry = {
   lg:            { selector: "@media (min-width:1024px)",  type: "media", description: "Large screens (1024px+)" },
   xl:            { selector: "@media (min-width:1280px)",  type: "media", description: "XL screens (1280px+)" },
   "2xl":         { selector: "@media (min-width:1536px)",  type: "media", description: "2XL screens (1536px+)" },
+
+  /* ── Container queries (component-relative breakpoints) ── */
+  _containerSm: { selector: "@container (min-width:480px)",    type: "media", description: "Container ≥480px" },
+  _containerMd: { selector: "@container (min-width:768px)",    type: "media", description: "Container ≥768px" },
+  _containerLg: { selector: "@container (min-width:1024px)",   type: "media", description: "Container ≥1024px" },
 
   /* ── Special media queries ── */
   print:         { selector: "@media print",                                        type: "media", description: "Print media" },

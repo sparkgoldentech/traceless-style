@@ -1,5 +1,29 @@
-export interface ParseError { message: string; line: number; col: number; file: string; }
-export type StyleValue  = string | number;
+/**
+ * A diagnostic emitted by the AST parser, the property allowlist, the
+ * variant resolver, or the extractor's structural checks.
+ *
+ * `tlsCode` + `docsUrl` are optional — every emitter is encouraged to
+ * attach them (see `src/compiler/diagnostic-codes.ts`) so users can
+ * grep CI output, suppress by code, and click through to documentation.
+ * Older callers that emit only `message` still produce valid errors;
+ * the formatter backfills the code from a heuristic when missing.
+ */
+export interface ParseError {
+  message:  string;
+  line:     number;
+  col:      number;
+  file:     string;
+  /** TLS#### canonical identifier from the diagnostic-codes registry. */
+  tlsCode?: string;
+  /** Documentation URL for click-through. */
+  docsUrl?: string;
+}
+// Booleans are accepted ONLY for `_auto*` control keys (currently
+// `_autoDark` and `_autoRtl`) so per-group opt-out written as
+// `{ _autoRtl: false }` survives parsing. Every other position rejects
+// non-literal values as before — the strict literal-only safety story
+// stands.
+export type StyleValue  = string | number | boolean;
 export type StyleObject = { [key: string]: StyleValue | StyleObject };
 
 interface Tok { type: string; value: string; line: number; col: number; }
@@ -87,7 +111,16 @@ export function parseStyleObject(src: string, file="<unknown>"): {obj:StyleObjec
       if(v.type==="LBRACE"){const n=parseObj();if(n&&key)res[key]=n;}
       else if(v.type==="STRING"){lex.next();if(key)res[key]=v.value;}
       else if(v.type==="NUMBER"){lex.next();if(key)res[key]=parseFloat(v.value);}
-      else{const t2=lex.next();if(t2.value!=="true"&&t2.value!=="false"&&t2.value!=="null"&&t2.value!=="undefined")errors.push({message:`Variable '${t2.value}' not supported — use a literal`,line:t2.line,col:t2.col,file});}
+      else{
+        const t2=lex.next();
+        const isLit = t2.value==="true"||t2.value==="false"||t2.value==="null"||t2.value==="undefined";
+        if(!isLit) errors.push({message:`Variable '${t2.value}' not supported — use a literal`,line:t2.line,col:t2.col,file});
+        // Preserve booleans for `_auto*` control keys so per-group
+        // opt-outs (`_autoRtl: false`, `_autoDark: false`) survive parsing.
+        else if(key && key.startsWith("_auto") && (t2.value==="true"||t2.value==="false")) {
+          res[key] = (t2.value==="true");
+        }
+      }
       if(lex.peek().type==="COMMA")lex.next();
     }
     return res;

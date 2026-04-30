@@ -1,14 +1,14 @@
 /**
- * spark-css/dark — Built-in dark mode system
+ * traceless-style/dark — Built-in dark mode system
  *
  * ONE LINE to enable dark mode in your app:
  *
  *   // In layout.tsx:
- *   import { SparkDarkScript } from "spark-css/dark";
- *   // Add <SparkDarkScript /> inside <head> — prevents flash
+ *   import { TracelessDarkScript } from "traceless-style/dark";
+ *   // Add <TracelessDarkScript /> inside <head> — prevents flash
  *
  * Then toggle from anywhere:
- *   import { dark } from "spark-css/dark";
+ *   import { dark } from "traceless-style/dark";
  *   dark.toggle();
  *
  * Three strategies:
@@ -17,13 +17,19 @@
  *   "system" — class strategy but defaults to OS preference
  */
 
+// Static React imports (NOT a CJS require) so the bundler can resolve
+// these at build time. Turbopack's ESM evaluator throws on dynamic
+// `require("react")` calls during prerendering — the static form works
+// in every bundler we target. React is already a peer dependency.
+import { createElement, useState, useEffect } from "react";
+
 /* ══════════════════════════════════════════
    DARK MODE STRATEGIES
 ══════════════════════════════════════════ */
 export type DarkStrategy = "class" | "media" | "system";
 export type DarkMode     = "dark"  | "light" | "system";
 
-const STORAGE_KEY   = "spark-dark";
+const STORAGE_KEY   = "traceless-dark";
 const DARK_CLASS    = "dark";
 
 /* ══════════════════════════════════════════
@@ -143,7 +149,7 @@ export const dark = new DarkModeEngine();
 export const DARK_INIT_SCRIPT = `
 (function(){
   try {
-    var m = localStorage.getItem('spark-dark');
+    var m = localStorage.getItem('traceless-dark');
     if (m === 'dark') document.documentElement.classList.add('dark');
     else if (m === 'light') document.documentElement.classList.remove('dark');
     else if (window.matchMedia('(prefers-color-scheme: dark)').matches)
@@ -157,16 +163,71 @@ export const DARK_INIT_SCRIPT = `
 ══════════════════════════════════════════ */
 
 /**
- * SparkDarkScript — Add to <head> in layout.tsx
- * Prevents flash of wrong theme on page load.
+ * TracelessRoot — drop into the <head> of your root layout.
  *
- * Usage (ONE LINE in layout.tsx):
- *   <head>
- *     <SparkDarkScript />
- *   </head>
+ * Renders an inline <script> that reads the user's saved preference (or OS
+ * setting) and applies the .dark class to <html> BEFORE first paint, so
+ * dark-mode users never see a "flash of light." Uses suppressHydrationWarning
+ * so React is happy when the server-rendered HTML and the post-script DOM
+ * differ. Pure render — no hooks, no effects, safe in Server Components.
+ *
+ * Usage (one line):
+ *   import { TracelessRoot } from "traceless-style/dark";
+ *
+ *   export default function RootLayout({ children }) {
+ *     return (
+ *       <html lang="en" suppressHydrationWarning>
+ *         <head><TracelessRoot /></head>
+ *         <body>{children}</body>
+ *       </html>
+ *     );
+ *   }
  */
-export function SparkDarkScript(): null {
-  return null;
+// Type the return as a generic JSX-compatible element so consumers can use
+// it directly: `<TracelessRoot />`. We DON'T pull in @types/react here —
+// React's runtime handles the actual rendering via createElement.
+type ReactElementLike = { type: string; props: Record<string, unknown>; key: string | null };
+
+/**
+ * Combined anti-flash script: applies the saved dark-mode preference AND
+ * the saved direction (LTR/RTL) before first paint. Inlined so users
+ * never write either piece by hand — `<TracelessRoot />` is the single
+ * line they need.
+ *
+ * The RTL piece is a verbatim copy of `RTL_INIT_SCRIPT` from rtl.ts. We
+ * inline it (instead of importing) to keep `dark.ts` standalone — users
+ * who only want dark mode don't need to load the RTL module at all.
+ */
+const COMBINED_INIT_SCRIPT = `
+(function(){
+  try {
+    var m = localStorage.getItem('traceless-dark');
+    if (m === 'dark') document.documentElement.classList.add('dark');
+    else if (m === 'light') document.documentElement.classList.remove('dark');
+    else if (window.matchMedia('(prefers-color-scheme: dark)').matches)
+      document.documentElement.classList.add('dark');
+  } catch(e) {}
+  try {
+    var d = localStorage.getItem('traceless-dir');
+    if (d === 'rtl' || d === 'ltr') document.documentElement.setAttribute('dir', d);
+  } catch(e) {}
+})();
+`.trim();
+
+export function TracelessRoot(): ReactElementLike {
+  // Use createElement (not a hand-rolled VDOM object) so we get a
+  // properly tagged element for the host React version. Hand-rolled
+  // `$$typeof: Symbol.for("react.element")` works in React 18 but is
+  // rejected by React 19's stricter element validation.
+  return createElement("script", {
+    dangerouslySetInnerHTML: { __html: COMBINED_INIT_SCRIPT },
+    suppressHydrationWarning: true,
+  }) as unknown as ReactElementLike;
+}
+
+/** Backwards-compatible alias of TracelessRoot. */
+export function TracelessDarkScript(): ReactElementLike {
+  return TracelessRoot();
 }
 
 /**
@@ -182,16 +243,16 @@ export function getDarkScriptTag(): string {
 ══════════════════════════════════════════ */
 
 /**
- * useSparkDark — React hook for dark mode
+ * useTracelessDark — React hook for dark mode
  *
  * Usage:
- *   const { isDark, toggle, enable, disable, mode } = useSparkDark();
+ *   const { isDark, toggle, enable, disable, mode } = useTracelessDark();
  *
  *   <button onClick={toggle}>
  *     {isDark ? "Switch to Light" : "Switch to Dark"}
  *   </button>
  */
-export function useSparkDark(): {
+export function useTracelessDark(): {
   isDark:  boolean;
   mode:    DarkMode;
   toggle:  () => void;
@@ -200,10 +261,6 @@ export function useSparkDark(): {
   system:  () => void;
   set:     (mode: "dark" | "light") => void;
 } {
-  // Dynamic import React to avoid bundling it when not needed
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { useState, useEffect } = require("react") as typeof import("react");
-
   const [mode, setMode] = useState<DarkMode>(() =>
     typeof window !== "undefined" ? dark.getMode() : "system"
   );
@@ -227,6 +284,63 @@ export function useSparkDark(): {
 }
 
 /* ══════════════════════════════════════════
+   ONE-LINE THEME TOGGLE
+══════════════════════════════════════════ */
+
+/**
+ * <ThemeToggle /> — the one-line light/dark switcher.
+ *
+ * Drop it anywhere in your UI. Clicking flips the .dark class on <html>,
+ * persists the choice in localStorage, and broadcasts the change so every
+ * `useTracelessDark()` consumer in the tree updates. Combined with the
+ * compiler's auto-dark-mode (every color value gets a derived dark
+ * variant), a single `<ThemeToggle />` is enough — the developer never
+ * writes `_dark: {...}` for routine color overrides.
+ *
+ * The button is rendered with inline-safe accessibility attributes and
+ * shows a sun/moon emoji that swaps on click. To restyle, wrap your own
+ * button around `useTracelessDark()` instead — `<ThemeToggle />` is the
+ * "one line and you're done" path.
+ *
+ * Usage:
+ *   import { ThemeToggle } from "traceless-style/dark";
+ *   <ThemeToggle />
+ *
+ * Optional props:
+ *   className   apply your own class (e.g. one from tl.create)
+ *   labels      override the visible labels: { light: "🌙", dark: "☀️" }
+ */
+export interface ThemeToggleProps {
+  className?: string;
+  labels?:    { light: string; dark: string };
+}
+
+export function ThemeToggle(props: ThemeToggleProps = {}): ReactElementLike {
+  const [isDark, setIsDark] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    setIsDark(dark.isDark());
+    return dark.subscribe(mode => setIsDark(mode === "dark"));
+  }, []);
+
+  const labels = props.labels ?? { light: "🌙", dark: "☀️" };
+
+  // Render a stable label until mount to avoid hydration-mismatch warnings.
+  // The anti-flash script in <TracelessRoot /> has already applied the
+  // correct class to <html> by the time the user can click anything.
+  return createElement("button", {
+    type:           "button",
+    onClick:        () => dark.toggle(),
+    "aria-label":   "Toggle color theme",
+    "aria-pressed": isDark,
+    className:      props.className,
+    suppressHydrationWarning: true,
+  }, mounted ? (isDark ? labels.dark : labels.light) : labels.light) as unknown as ReactElementLike;
+}
+
+/* ══════════════════════════════════════════
    NEXT.JS COMPONENTS
 ══════════════════════════════════════════ */
 
@@ -235,7 +349,7 @@ export function useSparkDark(): {
  *
  * Add to layout.tsx — ONE LINE:
  *
- *   import { DarkModeProvider } from "spark-css/dark";
+ *   import { DarkModeProvider } from "traceless-style/dark";
  *
  *   export default function RootLayout({ children }) {
  *     return (
@@ -259,6 +373,6 @@ export function DarkModeScript(): unknown {
       dangerouslySetInnerHTML: { __html: DARK_INIT_SCRIPT },
       suppressHydrationWarning: true,
     },
-    key: "spark-dark-script",
+    key: "traceless-dark-script",
   };
 }
