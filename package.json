@@ -2,7 +2,7 @@
   "name": "traceless-style",
   "version": "3.0.0",
   "description": "Zero-runtime atomic CSS. Build-time compilation. Safe AST parser. Webpack + Turbopack + Vite + Rollup + esbuild. Server Components. No Babel.",
-  "author": "Spark Golden Tech <contact@sparkgoldentech.com>",
+  "author": "Spark Golden Tech <team@sparkgoldentech.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
