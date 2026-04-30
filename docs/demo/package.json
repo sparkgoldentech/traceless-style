@@ -1,0 +1,24 @@
+{
+  "name": "traceless-style-demo",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Runnable demo exercising every public feature of traceless-style.",
+  "scripts": {
+    "dev":     "vite",
+    "build":   "vite build",
+    "preview": "vite preview",
+    "extract": "traceless-style --watch"
+  },
+  "dependencies": {
+    "react":     "^19.0.0",
+    "react-dom": "^19.0.0",
+    "traceless-style": "file:../.."
+  },
+  "devDependencies": {
+    "@types/react":     "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "^5.0.0",
+    "vite":       "^7.0.0"
+  }
+}
