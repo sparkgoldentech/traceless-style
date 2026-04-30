@@ -8,7 +8,7 @@
  *   - Drives mutations via the COMMANDS bag.
  *   - Element picker — "click anywhere on the page to inspect it."
  *   - Cascade view — for the inspected element, marks the WINNER for
- *     each property (last-applied non-variant rule wins; variant rules
+ *     each property (last-applied non-variant rule wins; variant rules hgjgjh
  *     win over base when their selector matches).
  *   - Live token editing — click a token value, edit inline, page updates.
  *   - Keyboard shortcuts: 1-6 → tab; / → search; Esc → cancel; Ctrl+R → refresh.
