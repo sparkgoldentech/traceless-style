@@ -1,0 +1,21 @@
+{
+  "name": "traceless-style-devtools",
+  "version": "0.4.0",
+  "private": true,
+  "description": "Chrome/Edge DevTools panel for traceless-style — inspect atomic classes, design tokens, dark mode, and RTL state on any live page.",
+  "license": "MIT",
+  "author": "Spark Golden Tech <contact@sparkgoldentech.com>",
+  "scripts": {
+    "build":            "node build.mjs",
+    "dev":              "node build.mjs --watch",
+    "package":          "npm run build && node package.mjs",
+    "build:firefox":    "npm run build && node build-firefox.mjs",
+    "package:firefox":  "npm run build && node build-firefox.mjs --zip"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.270",
+    "@types/node":   "^20.0.0",
+    "esbuild":       "^0.21.0",
+    "typescript":    "^5.0.0"
+  }
+}

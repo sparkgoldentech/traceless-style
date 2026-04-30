@@ -1,0 +1,72 @@
+name: devtools CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "devtools/**"
+      - ".github/workflows/devtools.yml"
+  pull_request:
+    paths:
+      - "devtools/**"
+      - ".github/workflows/devtools.yml"
+
+concurrency:
+  group: devtools-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-chromium:
+    name: Chromium build (Chrome / Edge / Opera / Brave)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./devtools
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: devtools/package-lock.json
+
+      - run: npm ci
+
+      - name: typecheck
+        run: npx tsc --noEmit
+
+      - name: build + package
+        run: npm run package
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: traceless-style-devtools-chromium
+          path: devtools/traceless-style-devtools.zip
+          retention-days: 14
+
+  build-firefox:
+    name: Firefox build (AMO)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./devtools
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: devtools/package-lock.json
+
+      - run: npm ci
+
+      - name: build + package
+        run: npm run package:firefox
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: traceless-style-devtools-firefox
+          path: devtools/traceless-style-devtools-firefox.zip
+          retention-days: 14

@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "traceless-style DevTools",
+  "version": "0.5.0",
+  "description": "Inspect traceless-style atomic CSS classes, design tokens, dark mode, and RTL state on any page.",
+  "author": "Spark Golden Tech",
+  "minimum_chrome_version": "100",
+  "devtools_page": "devtools.html",
+  "icons": {
+    "16":  "icons/icon-16.png",
+    "48":  "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": []
+}

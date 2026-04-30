@@ -1,8 +1,41 @@
+# dependencies
 node_modules/
-dist/
-.spark-css/
-*.log
-.DS_Store
 
+# build output
 dist/
-node_modules/
+build/
+
+# build cache (legacy + current names)
+.spark-css/
+.traceless-style/
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# env / secrets
+.env
+.env.local
+.env*.local
+*.pem
+
+# typescript
+*.tsbuildinfo
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude Code local settings (user-specific)
+.claude/settings.local.json
+
+# Test coverage
+coverage/

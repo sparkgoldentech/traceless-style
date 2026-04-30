@@ -1,0 +1,42 @@
+name: library CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "extension/**"
+      - "**.md"
+  pull_request:
+    paths-ignore:
+      - "extension/**"
+      - "**.md"
+
+concurrency:
+  group: library-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: build + test (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: install dependencies
+        run: npm ci
+
+      - name: build
+        run: npm run build
+
+      - name: test
+        run: npm test

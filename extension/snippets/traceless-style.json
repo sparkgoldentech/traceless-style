@@ -1,0 +1,98 @@
+{
+  "tl.create boilerplate": {
+    "prefix": "tlc",
+    "body": [
+      "const $ = tl.create({",
+      "  ${1:btn}: {",
+      "    $0",
+      "  },",
+      "});"
+    ],
+    "description": "Create an atomic styles object."
+  },
+  "tl.keyframes boilerplate": {
+    "prefix": "tlk",
+    "body": [
+      "const ${1:fadeIn} = tl.keyframes(\"${1:fadeIn}\", {",
+      "  from: { opacity: 0 },",
+      "  to:   { opacity: 1 },",
+      "});"
+    ],
+    "description": "Define a CSS @keyframes animation."
+  },
+  "tl.extend variants": {
+    "prefix": "tlx",
+    "body": [
+      "tl.extend({",
+      "  variants: {",
+      "    ${1:_brand}: \"${2:.brand &}\",",
+      "    $0",
+      "  },",
+      "});"
+    ],
+    "description": "Register custom variants for the compiler."
+  },
+  "tl.defineTokens": {
+    "prefix": "tlt",
+    "body": [
+      "export const ${1:tokens} = tl.defineTokens({",
+      "  ${2:brand}: {",
+      "    primary: \"${3:#3b82f6}\",",
+      "    $0",
+      "  },",
+      "});"
+    ],
+    "description": "Define design tokens for a project-wide palette."
+  },
+  "tl.createTheme": {
+    "prefix": "tlth",
+    "body": [
+      "export const ${1:dark} = tl.createTheme(\"${1:dark}\", {",
+      "  ${2:brand}: {",
+      "    primary: \"${3:#60a5fa}\",",
+      "    $0",
+      "  },",
+      "});"
+    ],
+    "description": "Define a theme override (applied via the returned class)."
+  },
+  "_dark variant block": {
+    "prefix": "tldark",
+    "body": [
+      "_dark: {",
+      "  $0",
+      "},"
+    ],
+    "description": "Add a dark-mode override block to the surrounding rule."
+  },
+  "_hover variant block": {
+    "prefix": "tlhover",
+    "body": [
+      "_hover: {",
+      "  $0",
+      "},"
+    ],
+    "description": "Add a hover-state override block to the surrounding rule."
+  },
+  "Disable auto-rtl on this group": {
+    "prefix": "tlnoRtl",
+    "body": [
+      "_autoRtl: false,"
+    ],
+    "description": "Opt this group out of auto-RTL property rewrites."
+  },
+  "Disable auto-dark on this group": {
+    "prefix": "tlnoDark",
+    "body": [
+      "_autoDark: false,"
+    ],
+    "description": "Opt this group out of auto-derived dark variants."
+  },
+  "tl.cssVar (typed token reference)": {
+    "prefix": "tlvar",
+    "body": [
+      "tl.cssVar<TokenKeyOf<typeof tokens>>(\"${1:brand-primary}\")"
+    ],
+    "description": "Reference a design-token CSS variable, type-checked at compile time."
+  }
+}
